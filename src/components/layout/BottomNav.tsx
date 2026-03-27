@@ -41,6 +41,7 @@ const bottomByRole: Record<Role, NavItem[]> = {
   supervisor: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
+    { label: 'Check-in', icon: MapPin, to: '/checkin' },
     { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
     { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
   ],
