@@ -225,15 +225,49 @@ export default function RankingPage() {
   const [period, setPeriod] = useState<Period>('month')
 
   const rankings = useMemo<EmployeeScore[]>(() => {
-    const activeEmployees = state.employees.filter((e) => e.status === 'ativo')
+    const activeEmployees = state.employees.filter((e) => e.status === 'ativo' && e.role !== 'gerente')
+    const hasPontoData = state.pontoRecords.length > 0
 
     const scores = activeEmployees.map((emp, empIdx) => {
-      const seed = emp.id + period
-      const assiduidade = randomInRange(seed, empIdx * 10 + 1, 80, 100)
-      const pontualidade = randomInRange(seed, empIdx * 10 + 2, 75, 100)
-      const produtividade = randomInRange(seed, empIdx * 10 + 3, 60, 100)
-      const indiceErros = randomInRange(seed, empIdx * 10 + 4, 0, 5)
-      const sla = randomInRange(seed, empIdx * 10 + 5, 85, 100)
+      // Calculate real data from ponto records
+      const records = state.pontoRecords.filter((p) => p.employeeId === emp.id)
+      const presentRecords = records.filter((r) => r.status === 'on_time' || r.status === 'late')
+      const onTimeRecords = records.filter((r) => r.status === 'on_time')
+
+      // Count scheduled days
+      let scheduledDays = 0
+      for (const schedule of state.schedules) {
+        for (const day of schedule.days) {
+          if (day.slots.some((s) => s.assignments.some((a) => a.employeeId === emp.id))) {
+            scheduledDays++
+          }
+        }
+      }
+
+      let assiduidade: number
+      let pontualidade: number
+      let produtividade: number
+      let indiceErros: number
+      let sla: number
+
+      if (hasPontoData && records.length > 0) {
+        // Real data
+        assiduidade = scheduledDays > 0 ? (presentRecords.length / scheduledDays) * 100 : 0
+        pontualidade = presentRecords.length > 0 ? (onTimeRecords.length / presentRecords.length) * 100 : 0
+        // Produtividade, erros and SLA still use seeds until admin.orion integration
+        const seed = emp.id + period
+        produtividade = randomInRange(seed, empIdx * 10 + 3, 60, 100)
+        indiceErros = randomInRange(seed, empIdx * 10 + 4, 0, 5)
+        sla = randomInRange(seed, empIdx * 10 + 5, 85, 100)
+      } else {
+        // Fallback to seeded random
+        const seed = emp.id + period
+        assiduidade = randomInRange(seed, empIdx * 10 + 1, 80, 100)
+        pontualidade = randomInRange(seed, empIdx * 10 + 2, 75, 100)
+        produtividade = randomInRange(seed, empIdx * 10 + 3, 60, 100)
+        indiceErros = randomInRange(seed, empIdx * 10 + 4, 0, 5)
+        sla = randomInRange(seed, empIdx * 10 + 5, 85, 100)
+      }
 
       const scoreTotal = calculateWeightedScore({
         assiduidade,
@@ -259,7 +293,7 @@ export default function RankingPage() {
 
       return {
         id: emp.id,
-        name: emp.name,
+        name: emp.nickname || emp.name,
         assiduidade,
         pontualidade,
         produtividade,
@@ -272,7 +306,7 @@ export default function RankingPage() {
     })
 
     return scores.sort((a, b) => b.scoreTotal - a.scoreTotal)
-  }, [state.employees, period])
+  }, [state.employees, state.pontoRecords, state.schedules, period])
 
   const top3 = rankings.slice(0, 3)
 

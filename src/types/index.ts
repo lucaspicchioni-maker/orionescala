@@ -87,6 +87,62 @@ export interface KPIMetric {
   category: 'financeiro' | 'qualidade' | 'operacional' | 'pessoas'
 }
 
+// ── Ponto (Time Clock) ──────────────────────────────────────────────
+
+export interface PontoRecord {
+  id: string
+  employeeId: string
+  date: string // ISO date YYYY-MM-DD
+  scheduledStart: string | null // "09:00"
+  scheduledEnd: string | null // "15:00"
+  checkIn: string | null // ISO datetime
+  checkOut: string | null // ISO datetime
+  lateMinutes: number // minutes late for check-in
+  earlyLeaveMinutes: number // minutes left early
+  workedMinutes: number // actual worked time
+  status: 'pending' | 'on_time' | 'late' | 'absent' | 'partial'
+  notes: string
+}
+
+// ── WhatsApp Config ─────────────────────────────────────────────────
+
+export interface WhatsAppConfig {
+  provider: 'evolution' | 'zapi' | 'manual'
+  apiUrl: string
+  apiKey: string
+  instance: string
+  enabled: boolean
+}
+
+export interface WhatsAppMessage {
+  id: string
+  employeeId: string
+  phone: string
+  message: string
+  sentAt: string
+  status: 'sent' | 'delivered' | 'read' | 'failed'
+  type: 'schedule_notify' | 'schedule_confirm' | 'presence_check' | 'absence_alert' | 'custom'
+}
+
+// ── Employee KPI Data (calculated) ──────────────────────────────────
+
+export interface EmployeeKPIData {
+  employeeId: string
+  period: string // week key or month key
+  assiduidade: number // % present days / scheduled days
+  pontualidade: number // % on-time check-ins / total check-ins
+  produtividade: number // orders per hour (manual or from admin.orion)
+  indiceErros: number // error rate % (manual input)
+  sla: number // % SLA compliance (manual input)
+  totalScore: number
+  scheduledHours: number
+  workedHours: number
+  totalCheckIns: number
+  onTimeCheckIns: number
+  lateCheckIns: number
+  absences: number
+}
+
 export type DayOfWeek = 'domingo' | 'segunda' | 'terca' | 'quarta' | 'quinta' | 'sexta' | 'sabado'
 
 export const DAY_LABELS: Record<DayOfWeek, string> = {

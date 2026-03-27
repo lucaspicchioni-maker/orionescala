@@ -10,12 +10,14 @@ import {
   Settings,
   X,
   Menu,
+  Fingerprint,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { label: 'Calculo DPH', icon: BarChart3, to: '/dph' },
   { label: 'Escala', icon: CalendarDays, to: '/escala' },
+  { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
   { label: 'Saldo de Horas', icon: Clock, to: '/saldo' },
   { label: 'Colaboradores', icon: Users, to: '/colaboradores' },
   { label: 'KPIs', icon: Activity, to: '/kpis' },

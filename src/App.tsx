@@ -7,6 +7,7 @@ import SaldoPage from '@/pages/SaldoPage'
 import ColaboradoresPage from '@/pages/ColaboradoresPage'
 import KPIsPage from '@/pages/KPIsPage'
 import RankingPage from '@/pages/RankingPage'
+import PontoPage from '@/pages/PontoPage'
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="/escala" element={<EscalaPage />} />
             <Route path="/saldo" element={<SaldoPage />} />
             <Route path="/colaboradores" element={<ColaboradoresPage />} />
+            <Route path="/ponto" element={<PontoPage />} />
             <Route path="/kpis" element={<KPIsPage />} />
             <Route path="/ranking" element={<RankingPage />} />
           </Route>
