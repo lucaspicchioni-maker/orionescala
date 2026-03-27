@@ -35,6 +35,7 @@ const bottomByRole: Record<Role, NavItem[]> = {
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
+    { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
     { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
   ],
   supervisor: [
