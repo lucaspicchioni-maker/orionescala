@@ -6,6 +6,7 @@ import {
   Clock,
   Users,
   Activity,
+  Trophy,
   Settings,
   X,
   Menu,
@@ -18,6 +19,7 @@ const navItems = [
   { label: 'Saldo de Horas', icon: Clock, to: '/saldo' },
   { label: 'Colaboradores', icon: Users, to: '/colaboradores' },
   { label: 'KPIs', icon: Activity, to: '/kpis' },
+  { label: 'Ranking', icon: Trophy, to: '/ranking' },
 ] as const
 
 export function Sidebar() {
