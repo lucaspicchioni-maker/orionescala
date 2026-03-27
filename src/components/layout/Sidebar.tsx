@@ -15,6 +15,11 @@ import {
   User,
   Zap,
   Home,
+  FileDown,
+  History,
+  ArrowLeftRight,
+  Wallet,
+  Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
@@ -36,6 +41,11 @@ const navItems: NavItem[] = [
   { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['supervisor', 'gerente'] },
   { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['supervisor', 'gerente'] },
   { label: 'Ranking', icon: Trophy, to: '/ranking', roles: ['supervisor', 'gerente'] },
+  { label: 'Banco de Horas', icon: Wallet, to: '/banco-horas', roles: ['supervisor', 'gerente'] },
+  { label: 'Historico Presenca', icon: History, to: '/historico-presenca', roles: ['supervisor', 'gerente'] },
+  { label: 'Troca de Turno', icon: ArrowLeftRight, to: '/troca-turno', roles: ['colaborador', 'supervisor', 'gerente'] },
+  { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['supervisor', 'gerente'] },
+  { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['supervisor', 'gerente'] },
   { label: 'Minha Area', icon: User, to: '/minha-area', roles: ['colaborador'] },
 ]
 

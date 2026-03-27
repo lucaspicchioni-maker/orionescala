@@ -274,3 +274,53 @@ export interface PrizeResult {
     met: boolean
   }[]
 }
+
+// ── Shift Swap ─────────────────────────────────────────────────────
+
+export interface ShiftSwapRequest {
+  id: string
+  requesterId: string
+  targetId: string
+  date: string // YYYY-MM-DD
+  requesterShift: string // "09:00-15:00"
+  targetShift: string // "15:00-22:00"
+  reason: string
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled'
+  createdAt: string
+  resolvedAt: string | null
+  resolvedBy: string | null // leader who approved/rejected
+}
+
+// ── Banco de Horas ─────────────────────────────────────────────────
+
+export interface BancoHorasEntry {
+  id: string
+  employeeId: string
+  date: string
+  weekStart: string
+  scheduledMinutes: number
+  workedMinutes: number
+  balanceMinutes: number // positive = extra, negative = deficit
+  type: 'regular' | 'overtime' | 'absence' | 'adjustment'
+  notes: string
+}
+
+// ── Feedback / Avaliação ───────────────────────────────────────────
+
+export interface FeedbackRecord {
+  id: string
+  employeeId: string
+  weekStart: string
+  evaluatorId: string
+  scores: {
+    proatividade: number // 1-5
+    trabalhoEquipe: number
+    comunicacao: number
+    qualidade: number
+    pontualidade: number
+  }
+  strengths: string
+  improvements: string
+  notes: string
+  createdAt: string
+}

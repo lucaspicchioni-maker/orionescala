@@ -9,6 +9,9 @@ import {
   Smartphone,
   Shield,
   Database,
+  Sun,
+  Moon,
+  Palette,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -97,6 +100,7 @@ export default function ConfiguracoesPage() {
       'orion_employees', 'orion_schedules', 'orion_ponto', 'orion_whatsapp_config',
       'orion_whatsapp_messages', 'orion_location_config', 'orion_notifications',
       'orion_productivity', 'orion_weekly_goals', 'orion_current_user',
+      'orion_shift_swaps', 'orion_banco_horas', 'orion_feedbacks', 'orion_theme', 'orion_onboarding_done',
     ]
     keys.forEach((k) => localStorage.removeItem(k))
     window.location.reload()
@@ -148,6 +152,40 @@ export default function ConfiguracoesPage() {
           <Save className="h-4 w-4" />
           {userSaved ? 'Salvo!' : 'Salvar Perfil'}
         </button>
+      </Card>
+
+      {/* ─── Theme ─── */}
+      <Card>
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <Palette className="h-4 w-4" />
+          Aparencia
+        </h3>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium text-foreground">Tema</div>
+            <div className="text-xs text-muted-foreground">Escolha entre modo escuro ou claro</div>
+          </div>
+          <div className="flex gap-1 rounded-lg bg-secondary p-1">
+            <button
+              onClick={() => dispatch({ type: 'SET_THEME', payload: 'dark' })}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
+                state.theme === 'dark' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Moon className="h-3.5 w-3.5" /> Escuro
+            </button>
+            <button
+              onClick={() => dispatch({ type: 'SET_THEME', payload: 'light' })}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
+                state.theme === 'light' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Sun className="h-3.5 w-3.5" /> Claro
+            </button>
+          </div>
+        </div>
       </Card>
 
       {/* ─── Location ─── */}

@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import type { Employee, PontoRecord, WhatsAppConfig, WhatsAppMessage, LocationConfig, ScheduledNotification, ProductivityRecord, WeeklyGoal } from '@/types'
+import type { Employee, PontoRecord, WhatsAppConfig, WhatsAppMessage, LocationConfig, ScheduledNotification, ProductivityRecord, WeeklyGoal, ShiftSwapRequest, BancoHorasEntry, FeedbackRecord } from '@/types'
 import { employees as defaultEmployees } from '@/data/employees'
 
 // ── Schedule Types ──────────────────────────────────────────────────────
@@ -43,6 +43,11 @@ export interface AppState {
   notifications: ScheduledNotification[]
   productivityRecords: ProductivityRecord[]
   weeklyGoals: WeeklyGoal[]
+  shiftSwaps: ShiftSwapRequest[]
+  bancoHoras: BancoHorasEntry[]
+  feedbacks: FeedbackRecord[]
+  theme: 'dark' | 'light'
+  onboardingDone: boolean
   currentWeek: string // ISO date of Monday
   currentUser: { role: 'colaborador' | 'supervisor' | 'gerente'; name: string }
 }
@@ -69,6 +74,13 @@ type Action =
   | { type: 'ADD_PRODUCTIVITY_RECORD'; payload: ProductivityRecord }
   | { type: 'UPDATE_PRODUCTIVITY_RECORD'; payload: ProductivityRecord }
   | { type: 'SET_WEEKLY_GOAL'; payload: WeeklyGoal }
+  | { type: 'ADD_SHIFT_SWAP'; payload: ShiftSwapRequest }
+  | { type: 'UPDATE_SHIFT_SWAP'; payload: ShiftSwapRequest }
+  | { type: 'ADD_BANCO_HORAS'; payload: BancoHorasEntry }
+  | { type: 'ADD_FEEDBACK'; payload: FeedbackRecord }
+  | { type: 'UPDATE_FEEDBACK'; payload: FeedbackRecord }
+  | { type: 'SET_THEME'; payload: 'dark' | 'light' }
+  | { type: 'SET_ONBOARDING_DONE'; payload: boolean }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -82,6 +94,11 @@ const LS_LOCATION_CONFIG = 'orion_location_config'
 const LS_NOTIFICATIONS = 'orion_notifications'
 const LS_PRODUCTIVITY = 'orion_productivity'
 const LS_WEEKLY_GOALS = 'orion_weekly_goals'
+const LS_SHIFT_SWAPS = 'orion_shift_swaps'
+const LS_BANCO_HORAS = 'orion_banco_horas'
+const LS_FEEDBACKS = 'orion_feedbacks'
+const LS_THEME = 'orion_theme'
+const LS_ONBOARDING = 'orion_onboarding_done'
 
 // Default: placeholder coordinates — user must configure with real kitchen location
 const defaultLocationConfig: LocationConfig = {
@@ -130,6 +147,11 @@ function getInitialState(): AppState {
     notifications: loadFromStorage<ScheduledNotification[]>(LS_NOTIFICATIONS, []),
     productivityRecords: loadFromStorage<ProductivityRecord[]>(LS_PRODUCTIVITY, []),
     weeklyGoals: loadFromStorage<WeeklyGoal[]>(LS_WEEKLY_GOALS, []),
+    shiftSwaps: loadFromStorage<ShiftSwapRequest[]>(LS_SHIFT_SWAPS, []),
+    bancoHoras: loadFromStorage<BancoHorasEntry[]>(LS_BANCO_HORAS, []),
+    feedbacks: loadFromStorage<FeedbackRecord[]>(LS_FEEDBACKS, []),
+    theme: loadFromStorage<'dark' | 'light'>(LS_THEME, 'dark'),
+    onboardingDone: loadFromStorage<boolean>(LS_ONBOARDING, false),
     currentWeek: getMonday(),
     currentUser: loadFromStorage<AppState['currentUser']>(LS_CURRENT_USER, defaultUser),
   }
@@ -260,6 +282,37 @@ function appReducer(state: AppState, action: Action): AppState {
       }
     }
 
+    case 'ADD_SHIFT_SWAP':
+      return { ...state, shiftSwaps: [...state.shiftSwaps, action.payload] }
+
+    case 'UPDATE_SHIFT_SWAP':
+      return {
+        ...state,
+        shiftSwaps: state.shiftSwaps.map((s) =>
+          s.id === action.payload.id ? action.payload : s,
+        ),
+      }
+
+    case 'ADD_BANCO_HORAS':
+      return { ...state, bancoHoras: [...state.bancoHoras, action.payload] }
+
+    case 'ADD_FEEDBACK':
+      return { ...state, feedbacks: [...state.feedbacks, action.payload] }
+
+    case 'UPDATE_FEEDBACK':
+      return {
+        ...state,
+        feedbacks: state.feedbacks.map((f) =>
+          f.id === action.payload.id ? action.payload : f,
+        ),
+      }
+
+    case 'SET_THEME':
+      return { ...state, theme: action.payload }
+
+    case 'SET_ONBOARDING_DONE':
+      return { ...state, onboardingDone: action.payload }
+
     case 'UPDATE_ASSIGNMENT_STATUS': {
       const { weekStart, date, hour, assignmentId, status } = action.payload
       return {
@@ -345,6 +398,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(LS_WEEKLY_GOALS, JSON.stringify(state.weeklyGoals))
   }, [state.weeklyGoals])
+
+  useEffect(() => {
+    localStorage.setItem(LS_SHIFT_SWAPS, JSON.stringify(state.shiftSwaps))
+  }, [state.shiftSwaps])
+
+  useEffect(() => {
+    localStorage.setItem(LS_BANCO_HORAS, JSON.stringify(state.bancoHoras))
+  }, [state.bancoHoras])
+
+  useEffect(() => {
+    localStorage.setItem(LS_FEEDBACKS, JSON.stringify(state.feedbacks))
+  }, [state.feedbacks])
+
+  useEffect(() => {
+    localStorage.setItem(LS_THEME, JSON.stringify(state.theme))
+    document.documentElement.setAttribute('data-theme', state.theme)
+  }, [state.theme])
+
+  useEffect(() => {
+    localStorage.setItem(LS_ONBOARDING, JSON.stringify(state.onboardingDone))
+  }, [state.onboardingDone])
+
+  // Apply theme on mount
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', state.theme)
+  }, [])
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>

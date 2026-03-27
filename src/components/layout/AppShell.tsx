@@ -15,6 +15,11 @@ const pageTitles: Record<string, string> = {
   '/ranking': 'Ranking',
   '/produtividade': 'Produtividade',
   '/configuracoes': 'Configuracoes',
+  '/relatorios': 'Relatorios',
+  '/historico-presenca': 'Historico de Presenca',
+  '/troca-turno': 'Troca de Turno',
+  '/banco-horas': 'Banco de Horas',
+  '/feedback': 'Avaliacao',
 }
 
 function formatDatePt(): string {

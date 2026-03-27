@@ -14,6 +14,11 @@ import {
   Trophy,
   MapPin,
   Settings,
+  FileDown,
+  History,
+  ArrowLeftRight,
+  Wallet,
+  Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useMemo } from 'react'
@@ -51,6 +56,9 @@ const mainByRole: Record<Role, NavItem[]> = {
 
 const moreByRole: Record<Role, NavItem[]> = {
   colaborador: [
+    { label: 'Troca Turno', icon: ArrowLeftRight, to: '/troca-turno', roles: ['colaborador'] },
+    { label: 'Hist. Presenca', icon: History, to: '/historico-presenca', roles: ['colaborador'] },
+    { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['colaborador'] },
     { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['colaborador'] },
   ],
   supervisor: [
@@ -58,6 +66,11 @@ const moreByRole: Record<Role, NavItem[]> = {
     { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['supervisor'] },
     { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['supervisor'] },
     { label: 'Ranking', icon: Trophy, to: '/ranking', roles: ['supervisor'] },
+    { label: 'Banco Horas', icon: Wallet, to: '/banco-horas', roles: ['supervisor'] },
+    { label: 'Hist. Presenca', icon: History, to: '/historico-presenca', roles: ['supervisor'] },
+    { label: 'Troca Turno', icon: ArrowLeftRight, to: '/troca-turno', roles: ['supervisor'] },
+    { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['supervisor'] },
+    { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['supervisor'] },
     { label: 'Check-in', icon: MapPin, to: '/checkin', roles: ['supervisor'] },
     { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['supervisor'] },
   ],
@@ -67,6 +80,11 @@ const moreByRole: Record<Role, NavItem[]> = {
     { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['gerente'] },
     { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['gerente'] },
     { label: 'Ranking', icon: Trophy, to: '/ranking', roles: ['gerente'] },
+    { label: 'Banco Horas', icon: Wallet, to: '/banco-horas', roles: ['gerente'] },
+    { label: 'Hist. Presenca', icon: History, to: '/historico-presenca', roles: ['gerente'] },
+    { label: 'Troca Turno', icon: ArrowLeftRight, to: '/troca-turno', roles: ['gerente'] },
+    { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['gerente'] },
+    { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['gerente'] },
     { label: 'Minha Area', icon: User, to: '/minha-area', roles: ['gerente'] },
     { label: 'Check-in', icon: MapPin, to: '/checkin', roles: ['gerente'] },
     { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['gerente'] },
