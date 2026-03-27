@@ -3,6 +3,8 @@ import type { ElementType } from 'react'
 import {
   Home,
   CalendarDays,
+  Fingerprint,
+  Zap,
   MapPin,
   Users,
   UserCog,
@@ -38,8 +40,8 @@ const bottomByRole: Record<Role, NavItem[]> = {
   supervisor: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
-    { label: 'Equipe', icon: Users, to: '/colaboradores' },
-    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
+    { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
   ],
   rh: [
     { label: 'Inicio', icon: Home, to: '/' },

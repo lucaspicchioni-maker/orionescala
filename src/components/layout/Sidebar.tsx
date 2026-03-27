@@ -6,6 +6,8 @@ import {
   Users,
   X,
   Menu,
+  Fingerprint,
+  Zap,
   Home,
   ClipboardList,
   MapPin,
@@ -41,8 +43,8 @@ const navByRole: Record<Role, NavItem[]> = {
   supervisor: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
-    { label: 'Equipe', icon: Users, to: '/colaboradores' },
-    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
+    { label: 'Produtividade', icon: Zap, to: '/produtividade' },
   ],
   rh: [
     { label: 'Inicio', icon: Home, to: '/' },
