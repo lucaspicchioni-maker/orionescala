@@ -12,6 +12,16 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Force cache bust on deploy v3
+      if (localStorage.getItem('orion_cache_v') !== '3') {
+        localStorage.clear();
+        if ('caches' in window) caches.keys().then(function(k){k.forEach(function(c){caches.delete(c)})});
+        if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(s){s.unregister()})});
+        localStorage.setItem('orion_cache_v', '3');
+        location.reload();
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
