@@ -106,9 +106,9 @@ const LS_ONBOARDING = 'orion_onboarding_done'
 
 // Default: placeholder coordinates — user must configure with real kitchen location
 const defaultLocationConfig: LocationConfig = {
-  name: 'Cozinha Orion',
-  lat: 0,
-  lng: 0,
+  name: 'Cozinha Orion - Rua Grao Mogol 99, Sion, BH',
+  lat: -19.9365,
+  lng: -43.9345,
   radiusMeters: 150,
 }
 

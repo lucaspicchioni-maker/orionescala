@@ -325,7 +325,6 @@ export default function ProdutividadePage() {
 
   const [recordForm, setRecordForm] = useState({
     employeeId: '',
-    date: new Date().toISOString().split('T')[0],
     totalOrders: '',
     totalErrors: '',
     errorCost: '',
@@ -338,10 +337,14 @@ export default function ProdutividadePage() {
   const saveRecord = useCallback(() => {
     const hoursWorked = parseFloat(recordForm.hoursWorked) || 0
     const totalOrders = parseInt(recordForm.totalOrders) || 0
+    // Check if record already exists for this employee+week — update it
+    const existing = state.productivityRecords.find(
+      r => r.employeeId === recordForm.employeeId && r.weekStart === weekStart,
+    )
     const record: ProductivityRecord = {
-      id: crypto.randomUUID(),
+      id: existing?.id ?? crypto.randomUUID(),
       employeeId: recordForm.employeeId,
-      date: recordForm.date,
+      date: weekStart,
       weekStart,
       totalOrders,
       totalErrors: parseInt(recordForm.totalErrors) || 0,
@@ -352,11 +355,14 @@ export default function ProdutividadePage() {
       hoursWorked,
       notes: recordForm.notes,
     }
-    dispatch({ type: 'ADD_PRODUCTIVITY_RECORD', payload: record })
+    if (existing) {
+      dispatch({ type: 'UPDATE_PRODUCTIVITY_RECORD', payload: record })
+    } else {
+      dispatch({ type: 'ADD_PRODUCTIVITY_RECORD', payload: record })
+    }
     setShowRecordModal(false)
     setRecordForm({
       employeeId: '',
-      date: new Date().toISOString().split('T')[0],
       totalOrders: '',
       totalErrors: '',
       errorCost: '',
@@ -365,7 +371,7 @@ export default function ProdutividadePage() {
       hoursWorked: '',
       notes: '',
     })
-  }, [recordForm, weekStart, dispatch])
+  }, [recordForm, weekStart, dispatch, state.productivityRecords])
 
   // ─── Render ──────────────────────────────────────────────────────
 
@@ -466,11 +472,14 @@ export default function ProdutividadePage() {
               {weekGoal ? 'Editar Metas' : 'Definir Metas'}
             </button>
             <button
-              onClick={() => setShowRecordModal(true)}
+              onClick={() => {
+                setRecordForm({ employeeId: '', totalOrders: '', totalErrors: '', errorCost: '', avgExpeditionTime: '', slaCompliance: '', hoursWorked: '', notes: '' })
+                setShowRecordModal(true)
+              }}
               className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
             >
               <Plus className="h-4 w-4" />
-              Lancar Dados
+              Lancar Dados Semanais
             </button>
           </div>
 
@@ -734,7 +743,7 @@ export default function ProdutividadePage() {
               <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="mt-4 text-lg font-semibold text-foreground">Sem dados de produtividade</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Defina as metas da semana e lance os dados diarios de cada colaborador.
+                Defina as metas da semana e lance os dados semanais de cada colaborador.
               </p>
               <div className="mt-6 flex justify-center gap-3">
                 <button
@@ -745,11 +754,14 @@ export default function ProdutividadePage() {
                   Definir Metas
                 </button>
                 <button
-                  onClick={() => setShowRecordModal(true)}
+                  onClick={() => {
+                    setRecordForm({ employeeId: '', totalOrders: '', totalErrors: '', errorCost: '', avgExpeditionTime: '', slaCompliance: '', hoursWorked: '', notes: '' })
+                    setShowRecordModal(true)
+                  }}
                   className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
                 >
                   <Plus className="h-4 w-4" />
-                  Lancar Dados
+                  Lancar Dados Semanais
                 </button>
               </div>
             </Card>
@@ -986,7 +998,7 @@ export default function ProdutividadePage() {
                   <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground/30" />
                   <p className="mt-3 text-foreground font-medium">Ainda sem dados esta semana</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Seu lider vai lancar seus numeros de produtividade aqui.
+                    Seu lider vai lancar seus numeros semanais de produtividade aqui.
                   </p>
                 </Card>
               )}
@@ -1148,13 +1160,30 @@ export default function ProdutividadePage() {
       </Modal>
 
       {/* ═══ Record Modal ═══ */}
-      <Modal isOpen={showRecordModal} onClose={() => setShowRecordModal(false)} title="Lancar Dados de Produtividade">
+      <Modal isOpen={showRecordModal} onClose={() => setShowRecordModal(false)} title="Lancar Dados Semanais de Produtividade">
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">Colaborador</label>
             <select
               value={recordForm.employeeId}
-              onChange={(e) => setRecordForm((f) => ({ ...f, employeeId: e.target.value }))}
+              onChange={(e) => {
+                const empId = e.target.value
+                const existing = state.productivityRecords.find(r => r.employeeId === empId && r.weekStart === weekStart)
+                if (existing) {
+                  setRecordForm({
+                    employeeId: empId,
+                    totalOrders: String(existing.totalOrders),
+                    totalErrors: String(existing.totalErrors),
+                    errorCost: String(existing.errorCost),
+                    avgExpeditionTime: String(existing.avgExpeditionTime),
+                    slaCompliance: String(existing.slaCompliance),
+                    hoursWorked: String(existing.hoursWorked),
+                    notes: existing.notes,
+                  })
+                } else {
+                  setRecordForm((f) => ({ ...f, employeeId: empId }))
+                }
+              }}
               className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
             >
               <option value="">Selecione...</option>
@@ -1165,14 +1194,11 @@ export default function ProdutividadePage() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Data</label>
-            <input
-              type="date"
-              value={recordForm.date}
-              onChange={(e) => setRecordForm((f) => ({ ...f, date: e.target.value }))}
-              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
-            />
+          <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+            Semana: <span className="font-semibold text-foreground">{formatDateShort(weekDates[0])} — {formatDateShort(weekDates[6])}</span>
+            {state.productivityRecords.find(r => r.employeeId === recordForm.employeeId && r.weekStart === weekStart) && (
+              <span className="ml-2 text-warning font-medium">(ja existe registro — sera atualizado)</span>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

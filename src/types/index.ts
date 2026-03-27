@@ -218,11 +218,11 @@ export const MIN_SHIFT_HOURS = 3
 
 // ── Productivity & Goals ────────────────────────────────────────────
 
-/** Daily productivity record per employee — entered by supervisor */
+/** Weekly productivity record per employee — entered by supervisor */
 export interface ProductivityRecord {
   id: string
   employeeId: string
-  date: string // YYYY-MM-DD
+  date: string // YYYY-MM-DD (same as weekStart for weekly records)
   weekStart: string
   // Core metrics
   totalOrders: number

@@ -23,6 +23,7 @@ import FeedbackPage from '@/pages/FeedbackPage'
 import RegrasDeOuroPage from '@/pages/RegrasDeOuroPage'
 import DimensionamentoPage from '@/pages/DimensionamentoPage'
 import RHDashboardPage from '@/pages/RHDashboardPage'
+import RelatorioLayerPage from '@/pages/RelatorioLayerPage'
 
 function AppRoutes() {
   const { state } = useApp()
@@ -61,6 +62,7 @@ function AppRoutes() {
           <Route path="/regras" element={<RegrasDeOuroPage />} />
           <Route path="/dimensionamento" element={<DimensionamentoPage />} />
           <Route path="/rh" element={<RHDashboardPage />} />
+          <Route path="/relatorio-layer" element={<RelatorioLayerPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

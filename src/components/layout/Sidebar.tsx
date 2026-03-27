@@ -23,6 +23,7 @@ import {
   Shield,
   UserCog,
   Calculator,
+  ClipboardList,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
@@ -51,7 +52,8 @@ const navItems: NavItem[] = [
   { label: 'Regras de Ouro', icon: Shield, to: '/regras', roles: ['supervisor', 'gerente'] },
   { label: 'Dimensionamento', icon: Calculator, to: '/dimensionamento', roles: ['gerente', 'rh'] },
   { label: 'Painel RH', icon: UserCog, to: '/rh', roles: ['rh', 'gerente'] },
-  { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['supervisor', 'gerente', 'rh'] },
+  { label: 'Relatorios CSV', icon: FileDown, to: '/relatorios', roles: ['supervisor', 'gerente', 'rh'] },
+  { label: 'Relatorio Layer', icon: ClipboardList, to: '/relatorio-layer', roles: ['supervisor', 'gerente', 'rh'] },
   { label: 'Minha Area', icon: User, to: '/minha-area', roles: ['colaborador'] },
 ]
 
