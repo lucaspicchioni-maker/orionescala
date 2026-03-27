@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import type { Employee, PontoRecord, WhatsAppConfig, WhatsAppMessage, LocationConfig, ScheduledNotification, ProductivityRecord, WeeklyGoal, ShiftSwapRequest, BancoHorasEntry, FeedbackRecord } from '@/types'
+import type { Employee, PontoRecord, WhatsAppConfig, WhatsAppMessage, LocationConfig, ScheduledNotification, ProductivityRecord, WeeklyGoal, ShiftSwapRequest, BancoHorasEntry, FeedbackRecord, GoldenRule } from '@/types'
 import { employees as defaultEmployees } from '@/data/employees'
 
 // ── Schedule Types ──────────────────────────────────────────────────────
@@ -46,6 +46,7 @@ export interface AppState {
   shiftSwaps: ShiftSwapRequest[]
   bancoHoras: BancoHorasEntry[]
   feedbacks: FeedbackRecord[]
+  goldenRules: GoldenRule[]
   theme: 'dark' | 'light'
   onboardingDone: boolean
   currentWeek: string // ISO date of Monday
@@ -79,6 +80,8 @@ type Action =
   | { type: 'ADD_BANCO_HORAS'; payload: BancoHorasEntry }
   | { type: 'ADD_FEEDBACK'; payload: FeedbackRecord }
   | { type: 'UPDATE_FEEDBACK'; payload: FeedbackRecord }
+  | { type: 'SET_GOLDEN_RULES'; payload: GoldenRule[] }
+  | { type: 'UPDATE_GOLDEN_RULE'; payload: GoldenRule }
   | { type: 'SET_THEME'; payload: 'dark' | 'light' }
   | { type: 'SET_ONBOARDING_DONE'; payload: boolean }
 
@@ -97,6 +100,7 @@ const LS_WEEKLY_GOALS = 'orion_weekly_goals'
 const LS_SHIFT_SWAPS = 'orion_shift_swaps'
 const LS_BANCO_HORAS = 'orion_banco_horas'
 const LS_FEEDBACKS = 'orion_feedbacks'
+const LS_GOLDEN_RULES = 'orion_golden_rules'
 const LS_THEME = 'orion_theme'
 const LS_ONBOARDING = 'orion_onboarding_done'
 
@@ -134,6 +138,112 @@ function getMonday(): string {
   return monday.toISOString().split('T')[0]
 }
 
+const defaultGoldenRules: GoldenRule[] = [
+  // ── Global ──
+  {
+    id: 'rule-max-weekly-hours',
+    name: 'Limite de Horas Semanais',
+    description: 'Colaborador nao pode ultrapassar X horas na semana',
+    layer: 'global',
+    severity: 'bloqueante',
+    enabled: true,
+    config: { maxWeeklyHours: 44 },
+  },
+  {
+    id: 'rule-max-overtime',
+    name: 'Limite de Horas Extras',
+    description: 'Maximo de horas extras permitidas por semana',
+    layer: 'global',
+    severity: 'alerta',
+    enabled: true,
+    config: { maxOvertimeHours: 10 },
+  },
+  {
+    id: 'rule-break-required',
+    name: 'Intervalo Obrigatorio',
+    description: 'Turnos acima de X horas exigem intervalo sinalizado',
+    layer: 'global',
+    severity: 'bloqueante',
+    enabled: true,
+    config: { requireBreak: true, breakAfterHours: 5 },
+  },
+  {
+    id: 'rule-min-staff',
+    name: 'Minimo de Colaboradores',
+    description: 'Minimo de pessoas escaladas por slot de horario',
+    layer: 'global',
+    severity: 'bloqueante',
+    enabled: true,
+    config: { minStaffPerSlot: 2 },
+  },
+  // ── Expeditor (colaborador) ──
+  {
+    id: 'rule-exp-no-late',
+    name: 'Atraso Zero',
+    description: 'Expeditor nao pode atrasar mais que X minutos',
+    layer: 'expeditor',
+    severity: 'bloqueante',
+    enabled: true,
+    config: { maxLateMinutes: 5 },
+  },
+  {
+    id: 'rule-exp-no-absence',
+    name: 'Presenca Obrigatoria',
+    description: 'Expeditor nao pode faltar mais que X vezes no mes',
+    layer: 'expeditor',
+    severity: 'bloqueante',
+    enabled: true,
+    config: { maxAbsencesPerMonth: 1 },
+  },
+  // ── Supervisor ──
+  {
+    id: 'rule-sup-no-unfilled',
+    name: 'Escala Completa',
+    description: 'Nao pode ter slots sem cobertura na escala publicada',
+    layer: 'supervisor',
+    severity: 'bloqueante',
+    enabled: true,
+    config: { maxUnfilledSlots: 0 },
+  },
+  // ── Gerente ──
+  {
+    id: 'rule-ger-productivity-min',
+    name: 'Produtividade Minima',
+    description: 'Produtividade da equipe nao pode ficar abaixo de X pedidos/hora',
+    layer: 'gerente',
+    severity: 'alerta',
+    enabled: true,
+    config: { minProductivityPerHour: 15 },
+  },
+  {
+    id: 'rule-ger-productivity-max',
+    name: 'Produtividade Maxima (Sobrecarga)',
+    description: 'Produtividade acima de X indica sobrecarga da equipe',
+    layer: 'gerente',
+    severity: 'alerta',
+    enabled: true,
+    config: { maxProductivityPerHour: 40 },
+  },
+  {
+    id: 'rule-ger-error-rate',
+    name: 'Taxa de Erros Maxima',
+    description: 'Taxa de erros da equipe nao pode ultrapassar X%',
+    layer: 'gerente',
+    severity: 'alerta',
+    enabled: true,
+    config: { maxErrorRate: 5 },
+  },
+  {
+    id: 'rule-ger-sla',
+    name: 'SLA Minimo',
+    description: 'Compliance de SLA nao pode ficar abaixo de X%',
+    layer: 'gerente',
+    severity: 'bloqueante',
+    enabled: true,
+    config: { minSlaCompliance: 85 },
+  },
+]
+
 const defaultUser: AppState['currentUser'] = { role: 'gerente', name: 'Gerente' }
 
 function getInitialState(): AppState {
@@ -150,6 +260,7 @@ function getInitialState(): AppState {
     shiftSwaps: loadFromStorage<ShiftSwapRequest[]>(LS_SHIFT_SWAPS, []),
     bancoHoras: loadFromStorage<BancoHorasEntry[]>(LS_BANCO_HORAS, []),
     feedbacks: loadFromStorage<FeedbackRecord[]>(LS_FEEDBACKS, []),
+    goldenRules: loadFromStorage<GoldenRule[]>(LS_GOLDEN_RULES, defaultGoldenRules),
     theme: loadFromStorage<'dark' | 'light'>(LS_THEME, 'dark'),
     onboardingDone: loadFromStorage<boolean>(LS_ONBOARDING, false),
     currentWeek: getMonday(),
@@ -307,6 +418,17 @@ function appReducer(state: AppState, action: Action): AppState {
         ),
       }
 
+    case 'SET_GOLDEN_RULES':
+      return { ...state, goldenRules: action.payload }
+
+    case 'UPDATE_GOLDEN_RULE':
+      return {
+        ...state,
+        goldenRules: state.goldenRules.map((r) =>
+          r.id === action.payload.id ? action.payload : r,
+        ),
+      }
+
     case 'SET_THEME':
       return { ...state, theme: action.payload }
 
@@ -410,6 +532,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(LS_FEEDBACKS, JSON.stringify(state.feedbacks))
   }, [state.feedbacks])
+
+  useEffect(() => {
+    localStorage.setItem(LS_GOLDEN_RULES, JSON.stringify(state.goldenRules))
+  }, [state.goldenRules])
 
   useEffect(() => {
     localStorage.setItem(LS_THEME, JSON.stringify(state.theme))

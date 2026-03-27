@@ -20,6 +20,7 @@ import {
   ArrowLeftRight,
   Wallet,
   Star,
+  Shield,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { label: 'Historico Presenca', icon: History, to: '/historico-presenca', roles: ['supervisor', 'gerente'] },
   { label: 'Troca de Turno', icon: ArrowLeftRight, to: '/troca-turno', roles: ['colaborador', 'supervisor', 'gerente'] },
   { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['supervisor', 'gerente'] },
+  { label: 'Regras de Ouro', icon: Shield, to: '/regras', roles: ['supervisor', 'gerente'] },
   { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['supervisor', 'gerente'] },
   { label: 'Minha Area', icon: User, to: '/minha-area', roles: ['colaborador'] },
 ]

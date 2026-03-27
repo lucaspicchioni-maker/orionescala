@@ -19,6 +19,7 @@ import {
   ArrowLeftRight,
   Wallet,
   Star,
+  Shield,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useMemo } from 'react'
@@ -70,6 +71,7 @@ const moreByRole: Record<Role, NavItem[]> = {
     { label: 'Hist. Presenca', icon: History, to: '/historico-presenca', roles: ['supervisor'] },
     { label: 'Troca Turno', icon: ArrowLeftRight, to: '/troca-turno', roles: ['supervisor'] },
     { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['supervisor'] },
+    { label: 'Regras', icon: Shield, to: '/regras', roles: ['supervisor'] },
     { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['supervisor'] },
     { label: 'Check-in', icon: MapPin, to: '/checkin', roles: ['supervisor'] },
     { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['supervisor'] },
@@ -84,6 +86,7 @@ const moreByRole: Record<Role, NavItem[]> = {
     { label: 'Hist. Presenca', icon: History, to: '/historico-presenca', roles: ['gerente'] },
     { label: 'Troca Turno', icon: ArrowLeftRight, to: '/troca-turno', roles: ['gerente'] },
     { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['gerente'] },
+    { label: 'Regras', icon: Shield, to: '/regras', roles: ['gerente'] },
     { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['gerente'] },
     { label: 'Minha Area', icon: User, to: '/minha-area', roles: ['gerente'] },
     { label: 'Check-in', icon: MapPin, to: '/checkin', roles: ['gerente'] },

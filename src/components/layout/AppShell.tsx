@@ -20,6 +20,7 @@ const pageTitles: Record<string, string> = {
   '/troca-turno': 'Troca de Turno',
   '/banco-horas': 'Banco de Horas',
   '/feedback': 'Avaliacao',
+  '/regras': 'Regras de Ouro',
 }
 
 function formatDatePt(): string {

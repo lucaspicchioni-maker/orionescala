@@ -20,6 +20,7 @@ import HistoricoPresencaPage from '@/pages/HistoricoPresencaPage'
 import TrocaTurnoPage from '@/pages/TrocaTurnoPage'
 import BancoHorasPage from '@/pages/BancoHorasPage'
 import FeedbackPage from '@/pages/FeedbackPage'
+import RegrasDeOuroPage from '@/pages/RegrasDeOuroPage'
 
 function AppRoutes() {
   const { state } = useApp()
@@ -55,6 +56,7 @@ function AppRoutes() {
           <Route path="/troca-turno" element={<TrocaTurnoPage />} />
           <Route path="/banco-horas" element={<BancoHorasPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
+          <Route path="/regras" element={<RegrasDeOuroPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

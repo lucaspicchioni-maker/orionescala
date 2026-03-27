@@ -324,3 +324,57 @@ export interface FeedbackRecord {
   notes: string
   createdAt: string
 }
+
+// ── Regras de Ouro ─────────────────────────────────────────────────
+
+export type RuleLayer = 'expeditor' | 'supervisor' | 'gerente' | 'global'
+export type RuleSeverity = 'bloqueante' | 'alerta' | 'informativo'
+
+export interface GoldenRule {
+  id: string
+  name: string
+  description: string
+  layer: RuleLayer
+  severity: RuleSeverity
+  enabled: boolean
+  // Configurable thresholds
+  config: {
+    maxWeeklyHours?: number          // max hours per week
+    maxOvertimeHours?: number        // max overtime hours per week
+    requireBreak?: boolean           // require break for 5h+ shifts
+    breakAfterHours?: number         // hours after which break is mandatory
+    minStaffPerSlot?: number         // minimum staff per hour slot
+    maxLateMinutes?: number          // max late minutes before violation
+    maxAbsencesPerMonth?: number     // max absences per month
+    maxUnfilledSlots?: number        // max unfilled slots in schedule
+    minProductivityPerHour?: number  // min orders per hour
+    maxProductivityPerHour?: number  // max orders per hour (overwork)
+    maxErrorRate?: number            // max error rate %
+    minSlaCompliance?: number        // min SLA %
+  }
+}
+
+export interface RuleViolation {
+  id: string
+  ruleId: string
+  ruleName: string
+  layer: RuleLayer
+  severity: RuleSeverity
+  employeeId: string | null // null = team-level violation
+  date: string
+  weekStart: string
+  description: string
+  value: number // actual value that caused violation
+  threshold: number // rule threshold
+  unit: string
+}
+
+export interface WeekHighlight {
+  type: 'positive' | 'negative'
+  layer: RuleLayer
+  title: string
+  description: string
+  metric?: number
+  unit?: string
+  employeeId?: string
+}

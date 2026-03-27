@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '@/store/AppContext'
-import { FileDown, FileSpreadsheet, Calendar, Users, Clock, TrendingUp } from 'lucide-react'
+import { FileDown, Calendar, Users, Clock, TrendingUp, ThumbsUp, ThumbsDown, Shield } from 'lucide-react'
+import { evaluateRules } from '@/services/rulesEngine'
+import type { RuleLayer } from '@/types'
 
 type ReportType = 'escala' | 'ponto' | 'produtividade' | 'banco_horas' | 'colaboradores'
 
@@ -16,7 +18,7 @@ const REPORTS: ReportConfig[] = [
   { type: 'escala', label: 'Escala Semanal', description: 'Exporta a escala com turnos e status de cada colaborador', icon: Calendar, roles: ['supervisor', 'gerente'] },
   { type: 'ponto', label: 'Registro de Ponto', description: 'Check-ins, atrasos, faltas e horas trabalhadas', icon: Clock, roles: ['supervisor', 'gerente'] },
   { type: 'produtividade', label: 'Produtividade', description: 'Pedidos, erros, SLA e tempo de expedicao por colaborador', icon: TrendingUp, roles: ['supervisor', 'gerente'] },
-  { type: 'banco_horas', label: 'Banco de Horas', description: 'Saldo de horas extras e deficit de cada colaborador', icon: FileSpreadsheet, roles: ['supervisor', 'gerente'] },
+  { type: 'banco_horas', label: 'Banco de Horas', description: 'Saldo de horas extras e deficit de cada colaborador', icon: Clock, roles: ['supervisor', 'gerente'] },
   { type: 'colaboradores', label: 'Colaboradores', description: 'Listagem completa com dados, funcao e status', icon: Users, roles: ['gerente'] },
 ]
 
@@ -189,11 +191,110 @@ export default function RelatoriosPage() {
         })}
       </div>
 
+      {/* ── Highlights Section ── */}
+      <HighlightsSection state={state} selectedWeek={selectedWeek} />
+
       {/* Info */}
       <div className="rounded-lg border border-border bg-card/50 p-3 text-xs text-muted-foreground">
         Os arquivos CSV podem ser abertos no Excel, Google Sheets ou qualquer ferramenta de planilhas.
         Os dados exportados refletem o estado atual do sistema no momento da geracao.
       </div>
+    </div>
+  )
+}
+
+const LAYER_LABELS: Record<RuleLayer, string> = {
+  global: 'Global',
+  expeditor: 'Expeditor',
+  supervisor: 'Supervisor',
+  gerente: 'Gerente',
+}
+
+function HighlightsSection({ state, selectedWeek }: {
+  state: ReturnType<typeof useApp>['state']
+  selectedWeek: string
+}) {
+  const { violations, highlights } = useMemo(
+    () => evaluateRules(state, selectedWeek),
+    [state, selectedWeek],
+  )
+
+  const positives = highlights.filter(h => h.type === 'positive')
+  const negatives = highlights.filter(h => h.type === 'negative')
+
+  if (positives.length === 0 && negatives.length === 0 && violations.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Shield className="h-5 w-5 text-primary" />
+        <h3 className="text-base font-bold text-foreground">Highlights da Semana</h3>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {/* Positives */}
+        {positives.length > 0 && (
+          <div className="rounded-xl border border-success/30 bg-success/5 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-success">
+              <ThumbsUp className="h-4 w-4" /> Destaques Positivos
+            </div>
+            {positives.map((h, i) => (
+              <div key={i} className="rounded-lg bg-success/10 px-3 py-2">
+                <div className="text-xs font-medium text-foreground">{h.title}</div>
+                <div className="text-[11px] text-muted-foreground">{h.description}</div>
+                {h.metric !== undefined && (
+                  <div className="mt-0.5 text-xs font-bold text-success">
+                    {h.metric}{h.unit ? ` ${h.unit}` : ''}
+                  </div>
+                )}
+                <span className="text-[10px] text-success/60">{LAYER_LABELS[h.layer]}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Negatives */}
+        {negatives.length > 0 && (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+              <ThumbsDown className="h-4 w-4" /> Pontos de Atencao
+            </div>
+            {negatives.map((h, i) => (
+              <div key={i} className="rounded-lg bg-destructive/10 px-3 py-2">
+                <div className="text-xs font-medium text-foreground">{h.title}</div>
+                <div className="text-[11px] text-muted-foreground">{h.description}</div>
+                {h.metric !== undefined && (
+                  <div className="mt-0.5 text-xs font-bold text-destructive">
+                    {h.metric}{h.unit ? ` ${h.unit}` : ''}
+                  </div>
+                )}
+                <span className="text-[10px] text-destructive/60">{LAYER_LABELS[h.layer]}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Rule violations summary */}
+      {violations.length > 0 && (
+        <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-semibold text-warning">
+            <Shield className="h-4 w-4" /> {violations.length} Violacao(es) de Regras de Ouro
+          </div>
+          {violations.slice(0, 5).map(v => (
+            <div key={v.id} className="flex items-center gap-2 text-xs">
+              <span className={v.severity === 'bloqueante' ? 'text-destructive' : 'text-warning'}>●</span>
+              <span className="text-foreground">{v.description}</span>
+              <span className="text-muted-foreground">({LAYER_LABELS[v.layer]})</span>
+            </div>
+          ))}
+          {violations.length > 5 && (
+            <div className="text-xs text-muted-foreground">+ {violations.length - 5} mais...</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
