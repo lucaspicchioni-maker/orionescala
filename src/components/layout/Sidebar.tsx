@@ -13,6 +13,7 @@ import {
   MapPin,
   UserCog,
   Calculator,
+  Shield,
   LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -32,6 +33,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
+    { label: 'Regras', icon: Shield, to: '/regras' },
     { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
   ],
   gerente: [
@@ -39,6 +41,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
     { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
+    { label: 'Regras', icon: Shield, to: '/regras' },
     { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
   ],
   supervisor: [
