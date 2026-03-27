@@ -140,6 +140,7 @@ export default function ConfiguracoesPage() {
               <option value="supervisor">Supervisor / Lider</option>
               <option value="rh">RH</option>
               <option value="gerente">Gerente</option>
+              <option value="admin">Admin (acesso total)</option>
             </select>
           </div>
         </div>

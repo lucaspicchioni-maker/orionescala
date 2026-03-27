@@ -51,7 +51,7 @@ export default function RelatoriosPage() {
   const [generating, setGenerating] = useState<ReportType | null>(null)
 
   const role = state.currentUser.role
-  const availableReports = REPORTS.filter(r => r.roles.includes(role))
+  const availableReports = role === 'admin' ? REPORTS : REPORTS.filter(r => r.roles.includes(role))
 
   const weekOptions = useMemo(() => {
     const weeks = new Set<string>()

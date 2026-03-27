@@ -144,7 +144,7 @@ function GoalStatus({ met, label }: { met: boolean; label: string }) {
 export default function ProdutividadePage() {
   const { state, dispatch } = useApp()
   const [layer, setLayer] = useState<Layer>(
-    state.currentUser.role === 'gerente' || state.currentUser.role === 'supervisor' ? 'lider' : 'colaborador',
+    state.currentUser.role === 'gerente' || state.currentUser.role === 'supervisor' || state.currentUser.role === 'admin' ? 'lider' : 'colaborador',
   )
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('')

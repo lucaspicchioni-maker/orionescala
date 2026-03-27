@@ -96,7 +96,7 @@ export default function RelatorioLayerPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const role = state.currentUser.role
   const defaultLayer: SelectedLayer =
-    role === 'rh' ? 'rh' : role === 'gerente' ? 'gerente' : role === 'supervisor' ? 'supervisor' : 'expeditor'
+    role === 'rh' ? 'rh' : role === 'gerente' || role === 'admin' ? 'gerente' : role === 'supervisor' ? 'supervisor' : 'expeditor'
   const [selectedLayer, setSelectedLayer] = useState<SelectedLayer>(defaultLayer)
 
   const weekStart = useMemo(() => getWeekStart(weekOffset), [weekOffset])

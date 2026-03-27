@@ -297,7 +297,7 @@ export default function HomePage() {
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* GERENTE HOME                                               */}
       {/* ═══════════════════════════════════════════════════════════ */}
-      {currentUser.role === 'gerente' && (
+      {(currentUser.role === 'gerente' || currentUser.role === 'admin') && (
         <>
           {/* Overview cards */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

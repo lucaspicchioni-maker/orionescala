@@ -49,7 +49,7 @@ export function Onboarding() {
   if (state.onboardingDone) return null
 
   const role = state.currentUser.role
-  const filteredSteps = STEPS.filter(s => s.roles.includes(role))
+  const filteredSteps = role === 'admin' ? STEPS.filter(s => s.roles.includes('gerente')) : STEPS.filter(s => s.roles.includes(role))
   const step = filteredSteps[currentStep]
   const isLast = currentStep === filteredSteps.length - 1
 

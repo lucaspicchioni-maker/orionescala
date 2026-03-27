@@ -5,9 +5,7 @@ import {
   CalendarDays,
   Fingerprint,
   Zap,
-  User,
   MoreHorizontal,
-  BarChart3,
   Clock,
   Users,
   Activity,
@@ -23,96 +21,106 @@ import {
   UserCog,
   Calculator,
   ClipboardList,
+  BarChart3,
+  User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useMemo } from 'react'
 import { useApp } from '@/store/AppContext'
 
-type Role = 'colaborador' | 'supervisor' | 'gerente' | 'rh'
+type Role = 'colaborador' | 'supervisor' | 'gerente' | 'rh' | 'admin'
 
 interface NavItem {
   label: string
   icon: ElementType
   to: string
-  roles: Role[]
 }
 
+// Main bottom bar: max 4 items + "Mais"
 const mainByRole: Record<Role, NavItem[]> = {
   colaborador: [
-    { label: 'Inicio', icon: Home, to: '/', roles: ['colaborador'] },
-    { label: 'Escala', icon: CalendarDays, to: '/minha-area', roles: ['colaborador'] },
-    { label: 'Check-in', icon: MapPin, to: '/checkin', roles: ['colaborador'] },
-    { label: 'Produtiv.', icon: Zap, to: '/produtividade', roles: ['colaborador'] },
+    { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Escala', icon: CalendarDays, to: '/minha-area' },
+    { label: 'Check-in', icon: MapPin, to: '/checkin' },
+    { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
   ],
   supervisor: [
-    { label: 'Inicio', icon: Home, to: '/', roles: ['supervisor'] },
-    { label: 'Escala', icon: CalendarDays, to: '/escala', roles: ['supervisor'] },
-    { label: 'Ponto', icon: Fingerprint, to: '/ponto', roles: ['supervisor'] },
-    { label: 'Produtiv.', icon: Zap, to: '/produtividade', roles: ['supervisor'] },
+    { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Escala', icon: CalendarDays, to: '/escala' },
+    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
+    { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
   ],
   gerente: [
-    { label: 'Inicio', icon: Home, to: '/', roles: ['gerente'] },
-    { label: 'Escala', icon: CalendarDays, to: '/escala', roles: ['gerente'] },
-    { label: 'Ponto', icon: Fingerprint, to: '/ponto', roles: ['gerente'] },
-    { label: 'Produtiv.', icon: Zap, to: '/produtividade', roles: ['gerente'] },
+    { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Escala', icon: CalendarDays, to: '/escala' },
+    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
+    { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
   ],
   rh: [
-    { label: 'Inicio', icon: Home, to: '/', roles: ['rh'] },
-    { label: 'Painel RH', icon: UserCog, to: '/rh', roles: ['rh'] },
-    { label: 'Colab.', icon: Users, to: '/colaboradores', roles: ['rh'] },
-    { label: 'Dimension.', icon: Calculator, to: '/dimensionamento', roles: ['rh'] },
+    { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Painel RH', icon: UserCog, to: '/rh' },
+    { label: 'Colab.', icon: Users, to: '/colaboradores' },
+    { label: 'Dimension.', icon: Calculator, to: '/dimensionamento' },
+  ],
+  admin: [
+    { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Escala', icon: CalendarDays, to: '/escala' },
+    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
+    { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
   ],
 }
 
+// "Mais" drawer items — kept short and relevant
 const moreByRole: Record<Role, NavItem[]> = {
   colaborador: [
-    { label: 'Troca Turno', icon: ArrowLeftRight, to: '/troca-turno', roles: ['colaborador'] },
-    { label: 'Hist. Presenca', icon: History, to: '/historico-presenca', roles: ['colaborador'] },
-    { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['colaborador'] },
-    { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['colaborador'] },
+    { label: 'Troca Turno', icon: ArrowLeftRight, to: '/troca-turno' },
+    { label: 'Hist. Presenca', icon: History, to: '/historico-presenca' },
+    { label: 'Avaliacao', icon: Star, to: '/feedback' },
+    { label: 'Configuracoes', icon: Settings, to: '/configuracoes' },
   ],
   supervisor: [
-    { label: 'Saldo de Horas', icon: Clock, to: '/saldo', roles: ['supervisor'] },
-    { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['supervisor'] },
-    { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['supervisor'] },
-    { label: 'Ranking', icon: Trophy, to: '/ranking', roles: ['supervisor'] },
-    { label: 'Banco Horas', icon: Wallet, to: '/banco-horas', roles: ['supervisor'] },
-    { label: 'Hist. Presenca', icon: History, to: '/historico-presenca', roles: ['supervisor'] },
-    { label: 'Troca Turno', icon: ArrowLeftRight, to: '/troca-turno', roles: ['supervisor'] },
-    { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['supervisor'] },
-    { label: 'Regras', icon: Shield, to: '/regras', roles: ['supervisor'] },
-    { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['supervisor'] },
-    { label: 'Rel. Layer', icon: ClipboardList, to: '/relatorio-layer', roles: ['supervisor'] },
-    { label: 'Check-in', icon: MapPin, to: '/checkin', roles: ['supervisor'] },
-    { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['supervisor'] },
+    { label: 'Colaboradores', icon: Users, to: '/colaboradores' },
+    { label: 'KPIs', icon: Activity, to: '/kpis' },
+    { label: 'Ranking', icon: Trophy, to: '/ranking' },
+    { label: 'Banco Horas', icon: Wallet, to: '/banco-horas' },
+    { label: 'Avaliacao', icon: Star, to: '/feedback' },
+    { label: 'Troca Turno', icon: ArrowLeftRight, to: '/troca-turno' },
+    { label: 'Rel. Layer', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Configuracoes', icon: Settings, to: '/configuracoes' },
   ],
   gerente: [
-    { label: 'DPH', icon: BarChart3, to: '/dph', roles: ['gerente'] },
-    { label: 'Saldo de Horas', icon: Clock, to: '/saldo', roles: ['gerente'] },
-    { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['gerente'] },
-    { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['gerente'] },
-    { label: 'Ranking', icon: Trophy, to: '/ranking', roles: ['gerente'] },
-    { label: 'Banco Horas', icon: Wallet, to: '/banco-horas', roles: ['gerente'] },
-    { label: 'Hist. Presenca', icon: History, to: '/historico-presenca', roles: ['gerente'] },
-    { label: 'Troca Turno', icon: ArrowLeftRight, to: '/troca-turno', roles: ['gerente'] },
-    { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['gerente'] },
-    { label: 'Regras', icon: Shield, to: '/regras', roles: ['gerente'] },
-    { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['gerente'] },
-    { label: 'Rel. Layer', icon: ClipboardList, to: '/relatorio-layer', roles: ['gerente'] },
-    { label: 'Minha Area', icon: User, to: '/minha-area', roles: ['gerente'] },
-    { label: 'Check-in', icon: MapPin, to: '/checkin', roles: ['gerente'] },
-    { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['gerente'] },
+    { label: 'KPIs', icon: Activity, to: '/kpis' },
+    { label: 'Ranking', icon: Trophy, to: '/ranking' },
+    { label: 'DPH', icon: BarChart3, to: '/dph' },
+    { label: 'Regras', icon: Shield, to: '/regras' },
+    { label: 'Colaboradores', icon: Users, to: '/colaboradores' },
+    { label: 'Banco Horas', icon: Wallet, to: '/banco-horas' },
+    { label: 'Rel. Layer', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Relatorios', icon: FileDown, to: '/relatorios' },
+    { label: 'Configuracoes', icon: Settings, to: '/configuracoes' },
   ],
   rh: [
-    { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['rh'] },
-    { label: 'Banco Horas', icon: Wallet, to: '/banco-horas', roles: ['rh'] },
-    { label: 'Hist. Presenca', icon: History, to: '/historico-presenca', roles: ['rh'] },
-    { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['rh'] },
-    { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['rh'] },
-    { label: 'Dimension.', icon: Calculator, to: '/dimensionamento', roles: ['rh'] },
-    { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['rh'] },
-    { label: 'Rel. Layer', icon: ClipboardList, to: '/relatorio-layer', roles: ['rh'] },
-    { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['rh'] },
+    { label: 'Banco Horas', icon: Wallet, to: '/banco-horas' },
+    { label: 'Hist. Presenca', icon: History, to: '/historico-presenca' },
+    { label: 'KPIs', icon: Activity, to: '/kpis' },
+    { label: 'Avaliacao', icon: Star, to: '/feedback' },
+    { label: 'Rel. Layer', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Relatorios', icon: FileDown, to: '/relatorios' },
+    { label: 'Configuracoes', icon: Settings, to: '/configuracoes' },
+  ],
+  admin: [
+    { label: 'KPIs', icon: Activity, to: '/kpis' },
+    { label: 'Ranking', icon: Trophy, to: '/ranking' },
+    { label: 'DPH', icon: BarChart3, to: '/dph' },
+    { label: 'Regras', icon: Shield, to: '/regras' },
+    { label: 'Colaboradores', icon: Users, to: '/colaboradores' },
+    { label: 'Painel RH', icon: UserCog, to: '/rh' },
+    { label: 'Banco Horas', icon: Wallet, to: '/banco-horas' },
+    { label: 'Rel. Layer', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Relatorios', icon: FileDown, to: '/relatorios' },
+    { label: 'Dimension.', icon: Calculator, to: '/dimensionamento' },
+    { label: 'Check-in', icon: MapPin, to: '/checkin' },
+    { label: 'Configuracoes', icon: Settings, to: '/configuracoes' },
   ],
 }
 

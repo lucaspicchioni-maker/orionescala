@@ -65,7 +65,7 @@ export default function RegrasDeOuroPage() {
   const [activeLayer, setActiveLayer] = useState<RuleLayer | 'all'>('all')
   const [showViolations, setShowViolations] = useState(true)
 
-  const isManager = role === 'supervisor' || role === 'gerente'
+  const isManager = role === 'supervisor' || role === 'gerente' || role === 'admin'
 
   // Evaluate current violations
   const { violations } = useMemo(
