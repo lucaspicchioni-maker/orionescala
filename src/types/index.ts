@@ -89,6 +89,20 @@ export interface KPIMetric {
 
 // ── Ponto (Time Clock) ──────────────────────────────────────────────
 
+export interface GeoLocation {
+  lat: number
+  lng: number
+  accuracy: number // meters
+  timestamp: string
+}
+
+export interface LocationConfig {
+  name: string // "Cozinha Orion"
+  lat: number
+  lng: number
+  radiusMeters: number // max distance allowed for check-in
+}
+
 export interface PontoRecord {
   id: string
   employeeId: string
@@ -97,10 +111,14 @@ export interface PontoRecord {
   scheduledEnd: string | null // "15:00"
   checkIn: string | null // ISO datetime
   checkOut: string | null // ISO datetime
+  checkInLocation: GeoLocation | null
+  checkOutLocation: GeoLocation | null
+  checkInDistance: number | null // meters from kitchen
+  checkOutDistance: number | null
   lateMinutes: number // minutes late for check-in
   earlyLeaveMinutes: number // minutes left early
   workedMinutes: number // actual worked time
-  status: 'pending' | 'on_time' | 'late' | 'absent' | 'partial'
+  status: 'pending' | 'on_time' | 'late' | 'absent' | 'partial' | 'location_rejected'
   notes: string
 }
 

@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import {
   LogIn,
   LogOut,
@@ -10,6 +11,9 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Smartphone,
+  MapPin,
+  Settings,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { MetricCard } from '@/components/ui/MetricCard'
@@ -98,6 +102,11 @@ export default function PontoPage() {
   const { state, dispatch } = useApp()
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDate, setSelectedDate] = useState(getToday())
+  const [showLocationConfig, setShowLocationConfig] = useState(false)
+  const [locName, setLocName] = useState(state.locationConfig.name)
+  const [locLat, setLocLat] = useState(String(state.locationConfig.lat))
+  const [locLng, setLocLng] = useState(String(state.locationConfig.lng))
+  const [locRadius, setLocRadius] = useState(String(state.locationConfig.radiusMeters))
 
   const weekStart = useMemo(() => getWeekStart(weekOffset), [weekOffset])
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart])
@@ -160,6 +169,10 @@ export default function PontoPage() {
         scheduledEnd: shift?.end ?? null,
         checkIn: now.toISOString(),
         checkOut: null,
+        checkInLocation: null,
+        checkOutLocation: null,
+        checkInDistance: null,
+        checkOutDistance: null,
         lateMinutes,
         earlyLeaveMinutes: 0,
         workedMinutes: 0,
@@ -215,6 +228,10 @@ export default function PontoPage() {
         scheduledEnd: shift?.end ?? null,
         checkIn: null,
         checkOut: null,
+        checkInLocation: null,
+        checkOutLocation: null,
+        checkInDistance: null,
+        checkOutDistance: null,
         lateMinutes: 0,
         earlyLeaveMinutes: 0,
         workedMinutes: 0,
@@ -256,14 +273,32 @@ export default function PontoPage() {
   return (
     <div className="animate-fade-in space-y-6 p-4 lg:p-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Clock className="h-7 w-7 text-primary" />
-          Controle de Ponto
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Check-in, check-out e controle de atrasos
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Clock className="h-7 w-7 text-primary" />
+            Controle de Ponto
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Check-in, check-out e controle de atrasos
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            to="/checkin"
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <Smartphone className="h-4 w-4" />
+            Tela Check-in
+          </Link>
+          <button
+            onClick={() => setShowLocationConfig(true)}
+            className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <MapPin className="h-4 w-4" />
+            Local GPS
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -538,6 +573,121 @@ export default function PontoPage() {
             </table>
           </div>
         </Card>
+      )}
+
+      {/* Location Config Modal */}
+      {showLocationConfig && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowLocationConfig(false)}
+        >
+          <div
+            className="glass-strong mx-4 w-full max-w-md rounded-xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-1 flex items-center gap-2 text-lg font-bold text-foreground">
+              <Settings className="h-5 w-5 text-primary" />
+              Configurar Localizacao GPS
+            </h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Defina as coordenadas da cozinha para validar check-in por proximidade.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Nome do local</label>
+                <input
+                  type="text"
+                  value={locName}
+                  onChange={(e) => setLocName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                  placeholder="Cozinha Orion"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">Latitude</label>
+                  <input
+                    type="text"
+                    value={locLat}
+                    onChange={(e) => setLocLat(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                    placeholder="-23.550520"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">Longitude</label>
+                  <input
+                    type="text"
+                    value={locLng}
+                    onChange={(e) => setLocLng(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                    placeholder="-46.633309"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Raio maximo (metros)</label>
+                <input
+                  type="number"
+                  value={locRadius}
+                  onChange={(e) => setLocRadius(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                  placeholder="150"
+                />
+              </div>
+
+              <button
+                onClick={() => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setLocLat(String(pos.coords.latitude))
+                        setLocLng(String(pos.coords.longitude))
+                      },
+                      () => {},
+                      { enableHighAccuracy: true },
+                    )
+                  }
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                <MapPin className="h-4 w-4" />
+                Usar minha localizacao atual
+              </button>
+
+              <p className="text-[10px] text-muted-foreground">
+                Dica: va ate a cozinha e clique &quot;Usar minha localizacao atual&quot; para pegar as coordenadas exatas.
+              </p>
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setShowLocationConfig(false)}
+                className="flex-1 rounded-lg bg-muted px-4 py-2.5 text-sm font-medium text-muted-foreground"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  dispatch({
+                    type: 'SET_LOCATION_CONFIG',
+                    payload: {
+                      name: locName,
+                      lat: parseFloat(locLat) || 0,
+                      lng: parseFloat(locLng) || 0,
+                      radiusMeters: parseInt(locRadius) || 150,
+                    },
+                  })
+                  setShowLocationConfig(false)
+                }}
+                className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

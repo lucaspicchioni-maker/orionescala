@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import type { Employee, PontoRecord, WhatsAppConfig, WhatsAppMessage } from '@/types'
+import type { Employee, PontoRecord, WhatsAppConfig, WhatsAppMessage, LocationConfig } from '@/types'
 import { employees as defaultEmployees } from '@/data/employees'
 
 // ── Schedule Types ──────────────────────────────────────────────────────
@@ -39,6 +39,7 @@ export interface AppState {
   pontoRecords: PontoRecord[]
   whatsappConfig: WhatsAppConfig
   whatsappMessages: WhatsAppMessage[]
+  locationConfig: LocationConfig
   currentWeek: string // ISO date of Monday
   currentUser: { role: 'colaborador' | 'supervisor' | 'gerente'; name: string }
 }
@@ -59,6 +60,7 @@ type Action =
   | { type: 'SET_WHATSAPP_CONFIG'; payload: WhatsAppConfig }
   | { type: 'ADD_WHATSAPP_MESSAGE'; payload: WhatsAppMessage }
   | { type: 'UPDATE_ASSIGNMENT_STATUS'; payload: { weekStart: string; date: string; hour: string; assignmentId: string; status: Assignment['status'] } }
+  | { type: 'SET_LOCATION_CONFIG'; payload: LocationConfig }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -68,6 +70,15 @@ const LS_CURRENT_USER = 'orion_current_user'
 const LS_PONTO = 'orion_ponto'
 const LS_WHATSAPP_CONFIG = 'orion_whatsapp_config'
 const LS_WHATSAPP_MESSAGES = 'orion_whatsapp_messages'
+const LS_LOCATION_CONFIG = 'orion_location_config'
+
+// Default: placeholder coordinates — user must configure with real kitchen location
+const defaultLocationConfig: LocationConfig = {
+  name: 'Cozinha Orion',
+  lat: 0,
+  lng: 0,
+  radiusMeters: 150,
+}
 
 const defaultWhatsAppConfig: WhatsAppConfig = {
   provider: 'manual',
@@ -104,6 +115,7 @@ function getInitialState(): AppState {
     pontoRecords: loadFromStorage<PontoRecord[]>(LS_PONTO, []),
     whatsappConfig: loadFromStorage<WhatsAppConfig>(LS_WHATSAPP_CONFIG, defaultWhatsAppConfig),
     whatsappMessages: loadFromStorage<WhatsAppMessage[]>(LS_WHATSAPP_MESSAGES, []),
+    locationConfig: loadFromStorage<LocationConfig>(LS_LOCATION_CONFIG, defaultLocationConfig),
     currentWeek: getMonday(),
     currentUser: loadFromStorage<AppState['currentUser']>(LS_CURRENT_USER, defaultUser),
   }
@@ -197,6 +209,9 @@ function appReducer(state: AppState, action: Action): AppState {
     case 'ADD_WHATSAPP_MESSAGE':
       return { ...state, whatsappMessages: [...state.whatsappMessages, action.payload] }
 
+    case 'SET_LOCATION_CONFIG':
+      return { ...state, locationConfig: action.payload }
+
     case 'UPDATE_ASSIGNMENT_STATUS': {
       const { weekStart, date, hour, assignmentId, status } = action.payload
       return {
@@ -266,6 +281,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(LS_WHATSAPP_MESSAGES, JSON.stringify(state.whatsappMessages))
   }, [state.whatsappMessages])
+
+  useEffect(() => {
+    localStorage.setItem(LS_LOCATION_CONFIG, JSON.stringify(state.locationConfig))
+  }, [state.locationConfig])
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
