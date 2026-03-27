@@ -380,3 +380,74 @@ export interface WeekHighlight {
   unit?: string
   employeeId?: string
 }
+
+// ── Disponibilidade (Availability) ────────────────────────────────
+
+export interface AvailabilitySlot {
+  day: DayOfWeek
+  hours: string[] // ['09:00-10:00', '10:00-11:00', ...]
+}
+
+export interface AvailabilityDeclaration {
+  id: string
+  employeeId: string
+  weekStart: string
+  slots: AvailabilitySlot[]
+  submittedAt: string
+  status: 'draft' | 'submitted'
+}
+
+// ── Badges / Gamificação ──────────────────────────────────────────
+
+export type BadgeType =
+  | 'top_produtividade'
+  | 'top_pontualidade'
+  | 'zero_erros'
+  | 'assiduidade_100'
+  | 'top3_geral'
+  | 'melhor_semana'
+  | 'streak_5'
+  | 'streak_10'
+  | 'streak_20'
+
+export interface EmployeeBadge {
+  id: string
+  employeeId: string
+  type: BadgeType
+  weekStart: string
+  awardedAt: string
+  label: string
+  description: string
+}
+
+// ── Feedback 360 (Colaborador avalia turno) ───────────────────────
+
+export interface ShiftFeedback {
+  id: string
+  employeeId: string
+  date: string
+  weekStart: string
+  scores: {
+    organizacao: number       // 1-5
+    equipamentos: number      // 1-5
+    comunicacaoLider: number  // 1-5
+    climaEquipe: number       // 1-5
+    cargaTrabalho: number     // 1-5
+  }
+  comments: string
+  createdAt: string
+}
+
+// ── Mural de Avisos ──────────────────────────────────────────────
+
+export interface Announcement {
+  id: string
+  title: string
+  body: string
+  createdBy: string
+  createdAt: string
+  expiresAt: string | null
+  targetRoles: ('colaborador' | 'supervisor' | 'gerente' | 'rh' | 'admin')[]
+  priority: 'normal' | 'urgent'
+  readBy: string[]
+}

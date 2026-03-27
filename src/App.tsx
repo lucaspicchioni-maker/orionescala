@@ -24,6 +24,11 @@ import RegrasDeOuroPage from '@/pages/RegrasDeOuroPage'
 import DimensionamentoPage from '@/pages/DimensionamentoPage'
 import RHDashboardPage from '@/pages/RHDashboardPage'
 import RelatorioLayerPage from '@/pages/RelatorioLayerPage'
+import DisponibilidadePage from '@/pages/DisponibilidadePage'
+import DashboardAoVivoPage from '@/pages/DashboardAoVivoPage'
+import MuralPage from '@/pages/MuralPage'
+import CustosOperacionaisPage from '@/pages/CustosOperacionaisPage'
+import AvaliacaoTurnoPage from '@/pages/AvaliacaoTurnoPage'
 
 function AppRoutes() {
   const { state } = useApp()
@@ -63,6 +68,11 @@ function AppRoutes() {
           <Route path="/dimensionamento" element={<DimensionamentoPage />} />
           <Route path="/rh" element={<RHDashboardPage />} />
           <Route path="/relatorio-layer" element={<RelatorioLayerPage />} />
+          <Route path="/disponibilidade" element={<DisponibilidadePage />} />
+          <Route path="/dashboard-ao-vivo" element={<DashboardAoVivoPage />} />
+          <Route path="/mural" element={<MuralPage />} />
+          <Route path="/custos" element={<CustosOperacionaisPage />} />
+          <Route path="/avaliacao-turno" element={<AvaliacaoTurnoPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

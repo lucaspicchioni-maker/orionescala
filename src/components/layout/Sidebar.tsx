@@ -15,6 +15,11 @@ import {
   Calculator,
   Shield,
   LogOut,
+  Activity,
+  DollarSign,
+  Megaphone,
+  Star,
+  Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
@@ -27,40 +32,51 @@ interface NavItem {
   to: string
 }
 
-// Max 4 items per role. Ultra clean.
 const navByRole: Record<Role, NavItem[]> = {
   admin: [
     { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Ao Vivo', icon: Activity, to: '/dashboard-ao-vivo' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
+    { label: 'Custos', icon: DollarSign, to: '/custos' },
     { label: 'Regras', icon: Shield, to: '/regras' },
     { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
   gerente: [
     { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Ao Vivo', icon: Activity, to: '/dashboard-ao-vivo' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
+    { label: 'Custos', icon: DollarSign, to: '/custos' },
     { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
     { label: 'Regras', icon: Shield, to: '/regras' },
     { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
   supervisor: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
     { label: 'Check-in', icon: MapPin, to: '/checkin' },
     { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-    { label: 'Produtividade', icon: Zap, to: '/produtividade' },
+    { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
+    { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
   rh: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Painel RH', icon: UserCog, to: '/rh' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
     { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
+    { label: 'Custos', icon: DollarSign, to: '/custos' },
+    { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
   colaborador: [
     { label: 'Inicio', icon: Home, to: '/' },
-    { label: 'Minha Escala', icon: CalendarDays, to: '/minha-area' },
+    { label: 'Escala', icon: CalendarDays, to: '/minha-area' },
     { label: 'Check-in', icon: MapPin, to: '/checkin' },
+    { label: 'Disponib.', icon: Clock, to: '/disponibilidade' },
+    { label: 'Avaliar', icon: Star, to: '/avaliacao-turno' },
+    { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
 }
 

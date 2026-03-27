@@ -8,8 +8,10 @@ import {
   MapPin,
   Users,
   UserCog,
-  ClipboardList,
   Calculator,
+  Activity,
+  Megaphone,
+  Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMemo } from 'react'
@@ -23,20 +25,21 @@ interface NavItem {
   to: string
 }
 
-// Mobile: max 4 items. Ultra clean.
+// Mobile: max 5 items
 const bottomByRole: Record<Role, NavItem[]> = {
   admin: [
     { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Ao Vivo', icon: Activity, to: '/dashboard-ao-vivo' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
-    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
   gerente: [
     { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Ao Vivo', icon: Activity, to: '/dashboard-ao-vivo' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
-    { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
-    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
   supervisor: [
     { label: 'Inicio', icon: Home, to: '/' },
@@ -50,11 +53,14 @@ const bottomByRole: Record<Role, NavItem[]> = {
     { label: 'Painel', icon: UserCog, to: '/rh' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
     { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
+    { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
   colaborador: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/minha-area' },
     { label: 'Check-in', icon: MapPin, to: '/checkin' },
+    { label: 'Avaliar', icon: Star, to: '/avaliacao-turno' },
+    { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
 }
 

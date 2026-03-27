@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import type { Employee, PontoRecord, WhatsAppConfig, WhatsAppMessage, LocationConfig, ScheduledNotification, ProductivityRecord, WeeklyGoal, ShiftSwapRequest, BancoHorasEntry, FeedbackRecord, GoldenRule } from '@/types'
+import type { Employee, PontoRecord, WhatsAppConfig, WhatsAppMessage, LocationConfig, ScheduledNotification, ProductivityRecord, WeeklyGoal, ShiftSwapRequest, BancoHorasEntry, FeedbackRecord, GoldenRule, AvailabilityDeclaration, EmployeeBadge, ShiftFeedback, Announcement } from '@/types'
 import { employees as defaultEmployees } from '@/data/employees'
 
 // ── Schedule Types ──────────────────────────────────────────────────────
@@ -47,6 +47,10 @@ export interface AppState {
   bancoHoras: BancoHorasEntry[]
   feedbacks: FeedbackRecord[]
   goldenRules: GoldenRule[]
+  availabilities: AvailabilityDeclaration[]
+  badges: EmployeeBadge[]
+  shiftFeedbacks: ShiftFeedback[]
+  announcements: Announcement[]
   theme: 'dark' | 'light'
   onboardingDone: boolean
   currentWeek: string // ISO date of Monday
@@ -82,6 +86,13 @@ type Action =
   | { type: 'UPDATE_FEEDBACK'; payload: FeedbackRecord }
   | { type: 'SET_GOLDEN_RULES'; payload: GoldenRule[] }
   | { type: 'UPDATE_GOLDEN_RULE'; payload: GoldenRule }
+  | { type: 'ADD_AVAILABILITY'; payload: AvailabilityDeclaration }
+  | { type: 'UPDATE_AVAILABILITY'; payload: AvailabilityDeclaration }
+  | { type: 'ADD_BADGES'; payload: EmployeeBadge[] }
+  | { type: 'ADD_SHIFT_FEEDBACK'; payload: ShiftFeedback }
+  | { type: 'ADD_ANNOUNCEMENT'; payload: Announcement }
+  | { type: 'UPDATE_ANNOUNCEMENT'; payload: Announcement }
+  | { type: 'MARK_ANNOUNCEMENT_READ'; payload: { announcementId: string; employeeId: string } }
   | { type: 'SET_THEME'; payload: 'dark' | 'light' }
   | { type: 'SET_ONBOARDING_DONE'; payload: boolean }
 
@@ -101,6 +112,10 @@ const LS_SHIFT_SWAPS = 'orion_shift_swaps'
 const LS_BANCO_HORAS = 'orion_banco_horas'
 const LS_FEEDBACKS = 'orion_feedbacks'
 const LS_GOLDEN_RULES = 'orion_golden_rules'
+const LS_AVAILABILITIES = 'orion_availabilities'
+const LS_BADGES = 'orion_badges'
+const LS_SHIFT_FEEDBACKS = 'orion_shift_feedbacks'
+const LS_ANNOUNCEMENTS = 'orion_announcements'
 const LS_THEME = 'orion_theme'
 const LS_ONBOARDING = 'orion_onboarding_done'
 
@@ -270,6 +285,10 @@ function getInitialState(): AppState {
     bancoHoras: loadFromStorage<BancoHorasEntry[]>(LS_BANCO_HORAS, []),
     feedbacks: loadFromStorage<FeedbackRecord[]>(LS_FEEDBACKS, []),
     goldenRules: loadFromStorage<GoldenRule[]>(LS_GOLDEN_RULES, defaultGoldenRules),
+    availabilities: loadFromStorage<AvailabilityDeclaration[]>(LS_AVAILABILITIES, []),
+    badges: loadFromStorage<EmployeeBadge[]>(LS_BADGES, []),
+    shiftFeedbacks: loadFromStorage<ShiftFeedback[]>(LS_SHIFT_FEEDBACKS, []),
+    announcements: loadFromStorage<Announcement[]>(LS_ANNOUNCEMENTS, []),
     theme: loadFromStorage<'dark' | 'light'>(LS_THEME, 'dark'),
     onboardingDone: loadFromStorage<boolean>(LS_ONBOARDING, false),
     currentWeek: getMonday(),
@@ -438,6 +457,47 @@ function appReducer(state: AppState, action: Action): AppState {
         ),
       }
 
+    case 'ADD_AVAILABILITY': {
+      const existsAvail = state.availabilities.some(a => a.employeeId === action.payload.employeeId && a.weekStart === action.payload.weekStart)
+      return {
+        ...state,
+        availabilities: existsAvail
+          ? state.availabilities.map(a => a.employeeId === action.payload.employeeId && a.weekStart === action.payload.weekStart ? action.payload : a)
+          : [...state.availabilities, action.payload],
+      }
+    }
+
+    case 'UPDATE_AVAILABILITY':
+      return {
+        ...state,
+        availabilities: state.availabilities.map(a => a.id === action.payload.id ? action.payload : a),
+      }
+
+    case 'ADD_BADGES':
+      return { ...state, badges: [...state.badges, ...action.payload] }
+
+    case 'ADD_SHIFT_FEEDBACK':
+      return { ...state, shiftFeedbacks: [...state.shiftFeedbacks, action.payload] }
+
+    case 'ADD_ANNOUNCEMENT':
+      return { ...state, announcements: [...state.announcements, action.payload] }
+
+    case 'UPDATE_ANNOUNCEMENT':
+      return {
+        ...state,
+        announcements: state.announcements.map(a => a.id === action.payload.id ? action.payload : a),
+      }
+
+    case 'MARK_ANNOUNCEMENT_READ':
+      return {
+        ...state,
+        announcements: state.announcements.map(a =>
+          a.id === action.payload.announcementId && !a.readBy.includes(action.payload.employeeId)
+            ? { ...a, readBy: [...a.readBy, action.payload.employeeId] }
+            : a
+        ),
+      }
+
     case 'SET_THEME':
       return { ...state, theme: action.payload }
 
@@ -545,6 +605,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(LS_GOLDEN_RULES, JSON.stringify(state.goldenRules))
   }, [state.goldenRules])
+
+  useEffect(() => {
+    localStorage.setItem(LS_AVAILABILITIES, JSON.stringify(state.availabilities))
+  }, [state.availabilities])
+
+  useEffect(() => {
+    localStorage.setItem(LS_BADGES, JSON.stringify(state.badges))
+  }, [state.badges])
+
+  useEffect(() => {
+    localStorage.setItem(LS_SHIFT_FEEDBACKS, JSON.stringify(state.shiftFeedbacks))
+  }, [state.shiftFeedbacks])
+
+  useEffect(() => {
+    localStorage.setItem(LS_ANNOUNCEMENTS, JSON.stringify(state.announcements))
+  }, [state.announcements])
 
   useEffect(() => {
     localStorage.setItem(LS_THEME, JSON.stringify(state.theme))
