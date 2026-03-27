@@ -11,6 +11,8 @@ import {
   X,
   Menu,
   Fingerprint,
+  User,
+  Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -20,8 +22,10 @@ const navItems = [
   { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
   { label: 'Saldo de Horas', icon: Clock, to: '/saldo' },
   { label: 'Colaboradores', icon: Users, to: '/colaboradores' },
+  { label: 'Produtividade', icon: Zap, to: '/produtividade' },
   { label: 'KPIs', icon: Activity, to: '/kpis' },
   { label: 'Ranking', icon: Trophy, to: '/ranking' },
+  { label: 'Minha Area', icon: User, to: '/minha-area' },
 ] as const
 
 export function Sidebar() {

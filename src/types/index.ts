@@ -161,6 +161,31 @@ export interface EmployeeKPIData {
   absences: number
 }
 
+// ── Notifications ───────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'schedule_published'    // Escala publicada, confirme
+  | 'shift_reminder'        // Seu turno comeca em 2h
+  | 'shift_start'           // Seu turno comecou, faca check-in
+  | 'shift_end'             // Seu turno termina em 30min
+  | 'absence_alert'         // Colaborador nao apareceu
+  | 'confirmation_deadline' // Prazo de confirmacao expirando
+  | 'schedule_change'       // Mudanca na sua escala
+
+export interface ScheduledNotification {
+  id: string
+  employeeId: string
+  type: NotificationType
+  scheduledFor: string // ISO datetime when to send
+  message: string
+  weekStart: string
+  date: string // shift date
+  hour: string // shift hour
+  status: 'pending' | 'sent' | 'cancelled'
+  sentAt: string | null
+  channel: 'whatsapp' | 'in_app'
+}
+
 export type DayOfWeek = 'domingo' | 'segunda' | 'terca' | 'quarta' | 'quinta' | 'sexta' | 'sabado'
 
 export const DAY_LABELS: Record<DayOfWeek, string> = {
@@ -187,3 +212,64 @@ export const HOUR_RANGES = HOURS.map((h, i) => {
 export const MAX_ORDERS_PER_PERSON = 35
 export const MIN_LUNCH_PEOPLE = 2
 export const MIN_SHIFT_HOURS = 3
+
+// ── Productivity & Goals ────────────────────────────────────────────
+
+/** Daily productivity record per employee — entered by supervisor */
+export interface ProductivityRecord {
+  id: string
+  employeeId: string
+  date: string // YYYY-MM-DD
+  weekStart: string
+  // Core metrics
+  totalOrders: number
+  totalErrors: number
+  errorCost: number // R$ reimbursement cost from errors
+  avgExpeditionTime: number // seconds average per order
+  slaCompliance: number // % of orders within SLA target time
+  // Derived
+  ordersPerHour: number
+  hoursWorked: number
+  notes: string
+}
+
+/** Weekly goal configuration — set by lider/supervisor */
+export interface WeeklyGoal {
+  id: string
+  weekStart: string
+  // Team goals
+  teamOrdersTarget: number
+  teamMaxErrors: number // max errors allowed
+  teamMaxErrorCost: number // R$ max reimbursement
+  teamAvgExpeditionTarget: number // seconds
+  teamSlaTarget: number // %
+  // Individual goals
+  individualOrdersPerHourTarget: number
+  individualMaxErrors: number
+  individualSlaTarget: number // %
+  individualExpeditionTarget: number // seconds
+  // Prizes
+  teamPrize: number // R$ bonus per person if team hits all targets
+  individualPrize: number // R$ bonus if individual hits all targets
+  // Meta
+  createdAt: string
+  createdBy: string
+}
+
+/** Prize status for display */
+export interface PrizeResult {
+  employeeId: string
+  weekStart: string
+  individualMet: boolean
+  teamMet: boolean
+  individualPrize: number
+  teamPrize: number
+  totalPrize: number
+  details: {
+    metric: string
+    target: number
+    actual: number
+    unit: string
+    met: boolean
+  }[]
+}

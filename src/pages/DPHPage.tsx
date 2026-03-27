@@ -436,7 +436,7 @@ export default function DPHPage() {
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="animate-fade-in space-y-6 p-6">
+    <div className="animate-fade-in space-y-4 p-3 sm:space-y-6 sm:p-4 lg:p-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

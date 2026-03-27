@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import type { Employee, PontoRecord, WhatsAppConfig, WhatsAppMessage, LocationConfig } from '@/types'
+import type { Employee, PontoRecord, WhatsAppConfig, WhatsAppMessage, LocationConfig, ScheduledNotification, ProductivityRecord, WeeklyGoal } from '@/types'
 import { employees as defaultEmployees } from '@/data/employees'
 
 // ── Schedule Types ──────────────────────────────────────────────────────
@@ -40,6 +40,9 @@ export interface AppState {
   whatsappConfig: WhatsAppConfig
   whatsappMessages: WhatsAppMessage[]
   locationConfig: LocationConfig
+  notifications: ScheduledNotification[]
+  productivityRecords: ProductivityRecord[]
+  weeklyGoals: WeeklyGoal[]
   currentWeek: string // ISO date of Monday
   currentUser: { role: 'colaborador' | 'supervisor' | 'gerente'; name: string }
 }
@@ -61,6 +64,11 @@ type Action =
   | { type: 'ADD_WHATSAPP_MESSAGE'; payload: WhatsAppMessage }
   | { type: 'UPDATE_ASSIGNMENT_STATUS'; payload: { weekStart: string; date: string; hour: string; assignmentId: string; status: Assignment['status'] } }
   | { type: 'SET_LOCATION_CONFIG'; payload: LocationConfig }
+  | { type: 'ADD_NOTIFICATIONS'; payload: ScheduledNotification[] }
+  | { type: 'UPDATE_NOTIFICATION'; payload: ScheduledNotification }
+  | { type: 'ADD_PRODUCTIVITY_RECORD'; payload: ProductivityRecord }
+  | { type: 'UPDATE_PRODUCTIVITY_RECORD'; payload: ProductivityRecord }
+  | { type: 'SET_WEEKLY_GOAL'; payload: WeeklyGoal }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -71,6 +79,9 @@ const LS_PONTO = 'orion_ponto'
 const LS_WHATSAPP_CONFIG = 'orion_whatsapp_config'
 const LS_WHATSAPP_MESSAGES = 'orion_whatsapp_messages'
 const LS_LOCATION_CONFIG = 'orion_location_config'
+const LS_NOTIFICATIONS = 'orion_notifications'
+const LS_PRODUCTIVITY = 'orion_productivity'
+const LS_WEEKLY_GOALS = 'orion_weekly_goals'
 
 // Default: placeholder coordinates — user must configure with real kitchen location
 const defaultLocationConfig: LocationConfig = {
@@ -116,6 +127,9 @@ function getInitialState(): AppState {
     whatsappConfig: loadFromStorage<WhatsAppConfig>(LS_WHATSAPP_CONFIG, defaultWhatsAppConfig),
     whatsappMessages: loadFromStorage<WhatsAppMessage[]>(LS_WHATSAPP_MESSAGES, []),
     locationConfig: loadFromStorage<LocationConfig>(LS_LOCATION_CONFIG, defaultLocationConfig),
+    notifications: loadFromStorage<ScheduledNotification[]>(LS_NOTIFICATIONS, []),
+    productivityRecords: loadFromStorage<ProductivityRecord[]>(LS_PRODUCTIVITY, []),
+    weeklyGoals: loadFromStorage<WeeklyGoal[]>(LS_WEEKLY_GOALS, []),
     currentWeek: getMonday(),
     currentUser: loadFromStorage<AppState['currentUser']>(LS_CURRENT_USER, defaultUser),
   }
@@ -212,6 +226,40 @@ function appReducer(state: AppState, action: Action): AppState {
     case 'SET_LOCATION_CONFIG':
       return { ...state, locationConfig: action.payload }
 
+    case 'ADD_NOTIFICATIONS':
+      return { ...state, notifications: [...state.notifications, ...action.payload] }
+
+    case 'UPDATE_NOTIFICATION':
+      return {
+        ...state,
+        notifications: state.notifications.map((n) =>
+          n.id === action.payload.id ? action.payload : n,
+        ),
+      }
+
+    case 'ADD_PRODUCTIVITY_RECORD':
+      return { ...state, productivityRecords: [...state.productivityRecords, action.payload] }
+
+    case 'UPDATE_PRODUCTIVITY_RECORD':
+      return {
+        ...state,
+        productivityRecords: state.productivityRecords.map((r) =>
+          r.id === action.payload.id ? action.payload : r,
+        ),
+      }
+
+    case 'SET_WEEKLY_GOAL': {
+      const exists = state.weeklyGoals.some((g) => g.weekStart === action.payload.weekStart)
+      return {
+        ...state,
+        weeklyGoals: exists
+          ? state.weeklyGoals.map((g) =>
+              g.weekStart === action.payload.weekStart ? action.payload : g,
+            )
+          : [...state.weeklyGoals, action.payload],
+      }
+    }
+
     case 'UPDATE_ASSIGNMENT_STATUS': {
       const { weekStart, date, hour, assignmentId, status } = action.payload
       return {
@@ -285,6 +333,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(LS_LOCATION_CONFIG, JSON.stringify(state.locationConfig))
   }, [state.locationConfig])
+
+  useEffect(() => {
+    localStorage.setItem(LS_NOTIFICATIONS, JSON.stringify(state.notifications))
+  }, [state.notifications])
+
+  useEffect(() => {
+    localStorage.setItem(LS_PRODUCTIVITY, JSON.stringify(state.productivityRecords))
+  }, [state.productivityRecords])
+
+  useEffect(() => {
+    localStorage.setItem(LS_WEEKLY_GOALS, JSON.stringify(state.weeklyGoals))
+  }, [state.weeklyGoals])
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>

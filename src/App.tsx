@@ -9,6 +9,8 @@ import KPIsPage from '@/pages/KPIsPage'
 import RankingPage from '@/pages/RankingPage'
 import PontoPage from '@/pages/PontoPage'
 import CheckInPage from '@/pages/CheckInPage'
+import MinhaAreaPage from '@/pages/MinhaAreaPage'
+import ProdutividadePage from '@/pages/ProdutividadePage'
 
 function App() {
   return (
@@ -23,6 +25,8 @@ function App() {
             <Route path="/colaboradores" element={<ColaboradoresPage />} />
             <Route path="/ponto" element={<PontoPage />} />
             <Route path="/checkin" element={<CheckInPage />} />
+            <Route path="/minha-area" element={<MinhaAreaPage />} />
+            <Route path="/produtividade" element={<ProdutividadePage />} />
             <Route path="/kpis" element={<KPIsPage />} />
             <Route path="/ranking" element={<RankingPage />} />
           </Route>

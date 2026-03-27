@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
+import { BottomNav } from './BottomNav'
 
 const pageTitles: Record<string, string> = {
   '/dph': 'Calculo DPH',
@@ -7,6 +8,11 @@ const pageTitles: Record<string, string> = {
   '/saldo': 'Saldo de Horas',
   '/colaboradores': 'Colaboradores',
   '/kpis': 'KPIs',
+  '/ponto': 'Ponto',
+  '/checkin': 'Check-in',
+  '/minha-area': 'Minha Area',
+  '/ranking': 'Ranking',
+  '/produtividade': 'Produtividade',
   '/configuracoes': 'Configuracoes',
 }
 
@@ -30,18 +36,21 @@ export function AppShell() {
 
       <div className="flex flex-1 flex-col lg:ml-0">
         {/* Header */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-md pl-16 lg:pl-6">
-          <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md pl-14 lg:h-16 lg:px-6 lg:pl-6">
+          <h1 className="text-base font-semibold text-foreground lg:text-lg">{title}</h1>
           <span className="hidden text-sm capitalize text-muted-foreground sm:block">
             {dateStr}
           </span>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 p-6">
+        {/* Page content — bottom padding for mobile nav */}
+        <main className="flex-1 pb-20 lg:pb-0">
           <Outlet />
         </main>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <BottomNav />
     </div>
   )
 }

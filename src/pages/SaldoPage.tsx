@@ -153,11 +153,11 @@ export default function SaldoPage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="animate-fade-in space-y-4 p-3 sm:space-y-6 sm:p-4 lg:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Saldo de Horas</h1>
+          <h1 className="text-xl font-bold text-foreground sm:text-2xl">Saldo de Horas</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Resumo semanal para pagamento — Quarta-feira
           </p>

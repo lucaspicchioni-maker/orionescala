@@ -22,6 +22,7 @@ import type { Employee } from '@/types'
 import { HOUR_RANGES, MIN_SHIFT_HOURS } from '@/types'
 
 import type { WeekSchedule, ScheduleDayData } from '@/store/AppContext'
+import { generateNotificationsForSchedule } from '@/services/notifications'
 
 // ─── Constants ─────────────────────────────────────────────────────
 
@@ -339,9 +340,20 @@ export default function EscalaPage() {
     updated.published = true
     updated.publishedAt = new Date().toISOString()
     persistSchedule(updated)
+
+    // Generate notifications for all assigned employees
+    const nameMap: Record<string, string> = {}
+    for (const emp of employees) {
+      nameMap[emp.id] = emp.nickname || emp.name
+    }
+    const notifications = generateNotificationsForSchedule(updated, nameMap)
+    if (notifications.length > 0) {
+      dispatch({ type: 'ADD_NOTIFICATIONS', payload: notifications })
+    }
+
     setShowPublishModal(false)
     setShowNotifyPanel(true)
-  }, [schedule, persistSchedule])
+  }, [schedule, persistSchedule, employees, dispatch])
 
   const buildWhatsAppLink = useCallback(
     (emp: Employee) => {
@@ -503,12 +515,12 @@ export default function EscalaPage() {
         {/* Schedule grid */}
         <div className="min-w-0 flex-1">
           <Card variant="glass" className="overflow-x-auto !p-0">
-            <div className="min-w-[600px]">
+            <div className="min-w-[480px]">
               {/* Grid header */}
-              <div className="grid grid-cols-[80px_60px_1fr_40px] items-center gap-2 border-b border-border px-4 py-3 text-xs font-semibold text-muted-foreground">
-                <span>Horário</span>
+              <div className="grid grid-cols-[60px_40px_1fr_32px] items-center gap-1.5 border-b border-border px-3 py-2.5 text-xs font-semibold text-muted-foreground sm:grid-cols-[80px_60px_1fr_40px] sm:gap-2 sm:px-4 sm:py-3">
+                <span>Horario</span>
                 <span className="text-center">Req.</span>
-                <span>Atribuições</span>
+                <span>Atribuicoes</span>
                 <span className="text-center">OK</span>
               </div>
 
@@ -521,7 +533,7 @@ export default function EscalaPage() {
                   <div
                     key={slot.hour}
                     className={cn(
-                      'grid grid-cols-[80px_60px_1fr_40px] items-center gap-2 border-b border-border/50 px-4 py-2.5 transition-colors',
+                      'grid grid-cols-[60px_40px_1fr_32px] items-center gap-1.5 border-b border-border/50 px-3 py-2 transition-colors sm:grid-cols-[80px_60px_1fr_40px] sm:gap-2 sm:px-4 sm:py-2.5',
                       slotIdx % 2 === 0 ? 'bg-card' : 'bg-secondary/50',
                       isCurrentHour && 'ring-1 ring-primary/30 bg-primary/5',
                     )}
