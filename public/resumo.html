@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orion Escala — Resumo Completo do Sistema</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; line-height: 1.6; padding: 40px 20px; }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 2.2rem; font-weight: 900; background: linear-gradient(135deg, #c8ff00, #a0cc00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+  .subtitle { color: #888; font-size: 0.95rem; margin-bottom: 40px; }
+  h2 { font-size: 1.4rem; font-weight: 700; color: #c8ff00; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 1px solid #222; }
+  h3 { font-size: 1.1rem; font-weight: 700; color: #fff; margin: 24px 0 12px; }
+  .link-box { background: #111; border: 1px solid #333; border-radius: 12px; padding: 20px 24px; margin-bottom: 32px; text-align: center; }
+  .link-box a { color: #c8ff00; font-size: 1.2rem; font-weight: 700; text-decoration: none; word-break: break-all; }
+  .link-box a:hover { text-decoration: underline; }
+  .card { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .role-badge { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; padding: 4px 10px; border-radius: 6px; }
+  .badge-admin { background: #c8ff0022; color: #c8ff00; }
+  .badge-gerente { background: #0ea5e922; color: #38bdf8; }
+  .badge-supervisor { background: #f59e0b22; color: #fbbf24; }
+  .badge-rh { background: #10b98122; color: #34d399; }
+  .badge-colaborador { background: #ffffff11; color: #999; }
+  .cred { font-family: 'Consolas', monospace; font-size: 0.85rem; color: #ccc; margin-bottom: 4px; }
+  .cred strong { color: #fff; }
+  .features { margin-top: 12px; }
+  .features li { font-size: 0.88rem; color: #aaa; margin-bottom: 4px; padding-left: 16px; position: relative; }
+  .features li::before { content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: #c8ff00; }
+  .section-card { background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 12px; padding: 20px 24px; margin-bottom: 12px; }
+  .section-card h4 { font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .section-card p { font-size: 0.85rem; color: #999; }
+  .flow { background: #0d0d0d; border-left: 3px solid #c8ff00; padding: 16px 20px; margin-bottom: 12px; border-radius: 0 8px 8px 0; }
+  .flow-title { font-weight: 700; color: #fff; font-size: 0.95rem; margin-bottom: 8px; }
+  .flow ol { padding-left: 20px; }
+  .flow li { font-size: 0.85rem; color: #aaa; margin-bottom: 4px; }
+  .table-wrap { overflow-x: auto; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { background: #1a1a1a; color: #c8ff00; font-weight: 700; text-align: left; padding: 10px 14px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 14px; border-bottom: 1px solid #1a1a1a; color: #ccc; }
+  tr:hover td { background: #111; }
+  .check { color: #34d399; }
+  .dash { color: #444; }
+  .print-btn { display: inline-block; background: #c8ff00; color: #000; font-weight: 700; padding: 12px 32px; border-radius: 10px; border: none; cursor: pointer; font-size: 0.95rem; margin-top: 24px; }
+  .print-btn:hover { background: #b0e000; }
+  @media print {
+    body { background: #fff; color: #111; padding: 20px; }
+    .card, .section-card, .flow, .link-box { border-color: #ddd; background: #f9f9f9; }
+    h1 { -webkit-text-fill-color: #333; }
+    h2 { color: #333; border-color: #ddd; }
+    .role-badge { border: 1px solid #ccc; }
+    .print-btn { display: none; }
+    td, th { color: #333; }
+    th { background: #eee; color: #333; }
+    .features li { color: #555; }
+    .features li::before { background: #333; }
+    .flow { border-color: #333; }
+    .flow li, .section-card p { color: #555; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Orion Escala</h1>
+<p class="subtitle">Sistema de gestao operacional para Orion Cloud Kitchens — Resumo completo</p>
+
+<!-- LINK -->
+<h2>Link do Sistema</h2>
+<div class="link-box">
+  <a href="https://orionescala-production.up.railway.app" target="_blank">https://orionescala-production.up.railway.app</a>
+</div>
+
+<!-- LOGINS -->
+<h2>Logins de Acesso</h2>
+
+<div class="card">
+  <div class="card-header">
+    <h3>Lucas Picchioni</h3>
+    <span class="role-badge badge-admin">Admin</span>
+  </div>
+  <p class="cred"><strong>Email:</strong> lucas@orion.com</p>
+  <p class="cred"><strong>Senha:</strong> lucas123</p>
+  <ul class="features">
+    <li>Acesso total a todas as funcionalidades do sistema</li>
+    <li>Configuracao de regras de ouro e parametros</li>
+    <li>Gestao de equipe, escalas, relatorios e dimensionamento</li>
+    <li>Visao consolidada de toda a operacao</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3>Vivian</h3>
+    <span class="role-badge badge-gerente">Gerente</span>
+  </div>
+  <p class="cred"><strong>Email:</strong> vivian@orion.com</p>
+  <p class="cred"><strong>Senha:</strong> vivian123</p>
+  <ul class="features">
+    <li>Dashboard com metricas da operacao (ativos, escalas, SLA, reembolsos)</li>
+    <li>Criar e publicar escalas semanais</li>
+    <li>Gestao completa da equipe (CRUD colaboradores)</li>
+    <li>Dimensionamento operacional (calcular quadro ideal)</li>
+    <li>Relatorios analiticos por layer com exportacao CSV</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3>Supervisor Orion</h3>
+    <span class="role-badge badge-supervisor">Supervisor</span>
+  </div>
+  <p class="cred"><strong>Email:</strong> supervisor@orion.com</p>
+  <p class="cred"><strong>Senha:</strong> super123</p>
+  <ul class="features">
+    <li>Dashboard operacional (escalados, check-ins, atrasos, faltas do dia)</li>
+    <li>Preencher e gerenciar escala semanal</li>
+    <li>Check-in por geolocalizacao (bater ponto)</li>
+    <li>Gerenciar ponto da equipe (presenca, atrasos, faltas)</li>
+    <li>Lancar e acompanhar produtividade semanal (pedidos, erros, SLA)</li>
+    <li>Definir metas semanais com premiacao</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3>RH Orion</h3>
+    <span class="role-badge badge-rh">RH</span>
+  </div>
+  <p class="cred"><strong>Email:</strong> rh@orion.com</p>
+  <p class="cred"><strong>Senha:</strong> rh1234</p>
+  <ul class="features">
+    <li>Painel RH com metricas de ativos, ferias, faltas e atrasos</li>
+    <li>Ranking de absenteismo (top colaboradores com mais faltas)</li>
+    <li>Gestao da equipe (cadastro, status, custos)</li>
+    <li>Dimensionamento operacional (calcular necessidade de contratacao)</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3>Miguel / Anna</h3>
+    <span class="role-badge badge-colaborador">Colaborador</span>
+  </div>
+  <p class="cred"><strong>Email:</strong> miguel@orion.com / anna@orion.com</p>
+  <p class="cred"><strong>Senha:</strong> miguel123 / anna1234</p>
+  <ul class="features">
+    <li>Dashboard pessoal (turno de hoje, status do check-in)</li>
+    <li>Visualizar sua escala semanal</li>
+    <li>Check-in por geolocalizacao ao chegar na cozinha</li>
+    <li>Acompanhar sua produtividade semanal (pedidos, erros, SLA)</li>
+  </ul>
+</div>
+
+<!-- FUNCIONALIDADES -->
+<h2>Todas as Funcionalidades</h2>
+
+<div class="section-card">
+  <h4>Escala Semanal</h4>
+  <p>Montagem de escala por slots de hora (09h-00h). Supervisor preenche atribuindo colaboradores a cada hora. Valida turno minimo de 3h, maximo de horas por semana e quantidade minima por slot. Ao publicar, gera notificacoes para os escalados.</p>
+</div>
+
+<div class="section-card">
+  <h4>Check-in por Geolocalizacao</h4>
+  <p>Colaborador e supervisor batem ponto pelo celular usando GPS. O sistema calcula distancia ate a cozinha (formula de Haversine) e rejeita check-in fora do raio permitido. Registra horario exato, localizacao e precisao do GPS.</p>
+</div>
+
+<div class="section-card">
+  <h4>Controle de Ponto</h4>
+  <p>Registro de presenca diaria com status automatico: pontual, atrasado, falta ou parcial. Calcula minutos de atraso, horas trabalhadas e mostra distancia do check-in. Visao semanal navegavel por semana.</p>
+</div>
+
+<div class="section-card">
+  <h4>Produtividade Semanal</h4>
+  <p>Lancamento semanal por colaborador: total de pedidos, erros, custo dos erros (R$), SLA (%). Calcula pedidos/hora automaticamente. Sistema de upsert — se ja existe registro da semana, atualiza ao inves de duplicar.</p>
+</div>
+
+<div class="section-card">
+  <h4>Metas e Premiacao</h4>
+  <p>Supervisor define metas semanais: pedidos da equipe, maximo de erros, SLA minimo. Se a equipe bate as metas, cada membro recebe o premio definido. Metas individuais tambem disponiveis.</p>
+</div>
+
+<div class="section-card">
+  <h4>Regras de Ouro</h4>
+  <p>Motor de regras configuravel com 11 regras operacionais. Cada regra tem layer (global/expeditor/supervisor/gerente), severidade (bloqueante/alerta/informativo) e threshold configuravel. Avaliacao automatica semanal.</p>
+</div>
+
+<div class="section-card">
+  <h4>Relatorio Analitico por Layer</h4>
+  <p>Relatorio automatico que avalia cada camada da operacao (expeditor, supervisor, gerente, RH). Mostra violacoes, destaques positivos/negativos e veredito (Excelente/Atencao/Critico). Exporta CSV por layer.</p>
+</div>
+
+<div class="section-card">
+  <h4>Dimensionamento Operacional</h4>
+  <p>Calcula quadro ideal baseado em: demanda semanal de pedidos, produtividade por hora, absenteismo real, ferias e turnover. Compara com equipe ativa e mostra deficit ou excedente para decisao de contratacao.</p>
+</div>
+
+<div class="section-card">
+  <h4>Painel RH</h4>
+  <p>Dashboard exclusivo para RH com: colaboradores ativos/ferias/inativos, ultimos 30 dias de presenca (faltas, atrasos, horas), ranking de absenteismo top 5.</p>
+</div>
+
+<div class="section-card">
+  <h4>Gestao de Equipe</h4>
+  <p>CRUD completo de colaboradores: nome, apelido, telefone, funcao, status (ativo/inativo/ferias), valor hora e custo mensal. Filtros por status.</p>
+</div>
+
+<div class="section-card">
+  <h4>Banco de Horas</h4>
+  <p>Calcula saldo semanal: horas escaladas vs horas trabalhadas. Mostra saldo positivo (hora extra) ou negativo (deficit) por colaborador.</p>
+</div>
+
+<div class="section-card">
+  <h4>Troca de Turno</h4>
+  <p>Colaborador solicita troca de turno com outro colega. Status: pendente, aceito, rejeitado. Supervisor/gerente aprova.</p>
+</div>
+
+<div class="section-card">
+  <h4>Feedback Semanal</h4>
+  <p>Avaliacao semanal do colaborador em 5 criterios (1-5): proatividade, trabalho em equipe, comunicacao, qualidade e pontualidade.</p>
+</div>
+
+<!-- MATRIZ DE ACESSO -->
+<h2>Matriz de Acesso por Role</h2>
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Funcionalidade</th>
+      <th>Admin</th>
+      <th>Gerente</th>
+      <th>Supervisor</th>
+      <th>RH</th>
+      <th>Colaborador</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Dashboard personalizado</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+    <tr><td>Criar/editar escala</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="dash">—</td><td class="dash">—</td></tr>
+    <tr><td>Ver propria escala</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="dash">—</td><td class="check">&#10003;</td></tr>
+    <tr><td>Check-in geolocalizacao</td><td class="dash">—</td><td class="dash">—</td><td class="check">&#10003;</td><td class="dash">—</td><td class="check">&#10003;</td></tr>
+    <tr><td>Gerenciar ponto da equipe</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="dash">—</td><td class="dash">—</td></tr>
+    <tr><td>Lancar produtividade</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="dash">—</td><td class="dash">—</td></tr>
+    <tr><td>Ver propria produtividade</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="dash">—</td><td class="check">&#10003;</td></tr>
+    <tr><td>Definir metas/premiacao</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="dash">—</td><td class="dash">—</td></tr>
+    <tr><td>Gestao de equipe (CRUD)</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td>Visualizar</td><td class="check">&#10003;</td><td class="dash">—</td></tr>
+    <tr><td>Dimensionamento</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="dash">—</td><td class="check">&#10003;</td><td class="dash">—</td></tr>
+    <tr><td>Relatorios por layer</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td></tr>
+    <tr><td>Regras de Ouro (config)</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td></tr>
+    <tr><td>Painel RH</td><td class="check">&#10003;</td><td class="dash">—</td><td class="dash">—</td><td class="check">&#10003;</td><td class="dash">—</td></tr>
+    <tr><td>Banco de horas</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="dash">—</td></tr>
+    <tr><td>Feedback semanal</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="dash">—</td><td class="dash">—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- LOGICA DO SISTEMA -->
+<h2>Logicas que Explicam o Sistema</h2>
+
+<div class="flow">
+  <div class="flow-title">Fluxo 1: Escala &rarr; Check-in &rarr; Ponto</div>
+  <ol>
+    <li>Supervisor monta a escala semanal atribuindo colaboradores a slots de hora (09h-00h)</li>
+    <li>Ao publicar, o sistema notifica os colaboradores escalados</li>
+    <li>No dia, o colaborador faz check-in pelo celular (GPS valida localizacao)</li>
+    <li>Sistema registra automaticamente: pontual, atrasado, falta ou fora do raio</li>
+    <li>Supervisor acompanha presenca em tempo real na pagina de Ponto</li>
+  </ol>
+</div>
+
+<div class="flow">
+  <div class="flow-title">Fluxo 2: Produtividade &rarr; Metas &rarr; Premiacao</div>
+  <ol>
+    <li>Supervisor lanca dados semanais: pedidos processados, erros, custo dos erros, SLA</li>
+    <li>Se ja existe registro da semana para o colaborador, atualiza (upsert)</li>
+    <li>Supervisor define metas: total de pedidos da equipe, maximo de erros, SLA minimo</li>
+    <li>Sistema compara resultados vs metas e mostra elegibilidade ao premio</li>
+    <li>Calcula pedidos/hora = total de pedidos / horas trabalhadas na semana</li>
+  </ol>
+</div>
+
+<div class="flow">
+  <div class="flow-title">Fluxo 3: Regras de Ouro &rarr; Violacoes &rarr; Relatorio</div>
+  <ol>
+    <li>Admin/Gerente configura 11 regras com thresholds (max horas, max atrasos, min SLA, etc.)</li>
+    <li>Cada regra tem layer (global/expeditor/supervisor/gerente) e severidade</li>
+    <li>Motor de regras avalia automaticamente por semana contra dados reais</li>
+    <li>Gera lista de violacoes e destaques positivos por colaborador</li>
+    <li>Relatorio por Layer mostra veredito: Excelente / Atencao / Critico</li>
+  </ol>
+</div>
+
+<div class="flow">
+  <div class="flow-title">Fluxo 4: Dimensionamento Operacional</div>
+  <ol>
+    <li>Insere demanda prevista (pedidos/semana) e produtividade esperada (pedidos/pessoa/hora)</li>
+    <li>Sistema calcula: quadro necessario = demanda / produtividade / horas de operacao</li>
+    <li>Aplica margens: absenteismo real, ferias programadas, turnover historico</li>
+    <li>Compara quadro necessario vs colaboradores ativos</li>
+    <li>Resultado: deficit (precisa contratar X) ou excedente (X acima do necessario)</li>
+  </ol>
+</div>
+
+<div class="flow">
+  <div class="flow-title">Fluxo 5: Banco de Horas</div>
+  <ol>
+    <li>Sistema compara horas escaladas vs horas efetivamente trabalhadas por semana</li>
+    <li>Saldo positivo = hora extra (trabalhou mais que o escalado)</li>
+    <li>Saldo negativo = deficit (trabalhou menos que o escalado)</li>
+    <li>Historico acumulado por colaborador para compensacao futura</li>
+  </ol>
+</div>
+
+<!-- REGRAS DE OURO -->
+<h2>As 11 Regras de Ouro</h2>
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr><th>#</th><th>Regra</th><th>O que avalia</th><th>Exemplo</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td>Max Horas Semanais</td><td>Horas trabalhadas por colaborador na semana</td><td>Max 44h/semana</td></tr>
+    <tr><td>2</td><td>Max Hora Extra</td><td>Saldo positivo no banco de horas</td><td>Max 10h extras/semana</td></tr>
+    <tr><td>3</td><td>Intervalo Obrigatorio</td><td>Turno acima de 5h precisa de pausa</td><td>Pausa apos 5h consecutivas</td></tr>
+    <tr><td>4</td><td>Min Pessoas por Slot</td><td>Quantidade minima de colaboradores por hora</td><td>Min 2 pessoas por hora</td></tr>
+    <tr><td>5</td><td>Max Atraso</td><td>Minutos de atraso no check-in</td><td>Max 15min de atraso</td></tr>
+    <tr><td>6</td><td>Max Faltas/Mes</td><td>Total de faltas por colaborador no mes</td><td>Max 3 faltas/mes</td></tr>
+    <tr><td>7</td><td>Slots Nao Preenchidos</td><td>Slots da escala sem colaborador atribuido</td><td>Max 0 slots vazios</td></tr>
+    <tr><td>8</td><td>Produtividade Minima</td><td>Pedidos por hora abaixo do piso</td><td>Min 8 pedidos/hora</td></tr>
+    <tr><td>9</td><td>Produtividade Maxima</td><td>Pedidos por hora acima do teto (previne sobrecarga)</td><td>Max 35 pedidos/hora</td></tr>
+    <tr><td>10</td><td>Taxa de Erro</td><td>Erros / total de pedidos em percentual</td><td>Max 5% de erro</td></tr>
+    <tr><td>11</td><td>SLA Minimo</td><td>Percentual de cumprimento de prazo</td><td>Min 95% SLA</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- STACK -->
+<h2>Stack Tecnica</h2>
+<div class="section-card">
+  <p><strong>Frontend:</strong> React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS v4</p>
+  <p><strong>Roteamento:</strong> React Router v7</p>
+  <p><strong>Estado:</strong> React Context + useReducer com persistencia em localStorage</p>
+  <p><strong>PWA:</strong> Service Worker com estrategia network-first</p>
+  <p><strong>Deploy:</strong> Railway (auto-deploy via GitHub, branch master)</p>
+  <p><strong>Servidor:</strong> Express 4 servindo SPA com fallback</p>
+</div>
+
+<br>
+<center>
+  <button class="print-btn" onclick="window.print()">Salvar como PDF</button>
+</center>
+<br><br>
+
+</div>
+</body>
+</html>
