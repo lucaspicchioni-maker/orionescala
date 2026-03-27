@@ -171,6 +171,7 @@ export type NotificationType =
   | 'absence_alert'         // Colaborador nao apareceu
   | 'confirmation_deadline' // Prazo de confirmacao expirando
   | 'schedule_change'       // Mudanca na sua escala
+  | 'break_required'        // Turno 5h+, sinalize intervalo
 
 export interface ScheduledNotification {
   id: string

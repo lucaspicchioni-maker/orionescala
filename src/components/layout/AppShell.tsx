@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
 
 const pageTitles: Record<string, string> = {
+  '/': 'Inicio',
   '/dph': 'Calculo DPH',
   '/escala': 'Escala',
   '/saldo': 'Saldo de Horas',

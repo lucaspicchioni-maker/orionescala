@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { NavLink } from 'react-router-dom'
+import type { ElementType } from 'react'
 import {
   BarChart3,
   CalendarDays,
@@ -13,23 +14,40 @@ import {
   Fingerprint,
   User,
   Zap,
+  Home,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useApp } from '@/store/AppContext'
 
-const navItems = [
-  { label: 'Calculo DPH', icon: BarChart3, to: '/dph' },
-  { label: 'Escala', icon: CalendarDays, to: '/escala' },
-  { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-  { label: 'Saldo de Horas', icon: Clock, to: '/saldo' },
-  { label: 'Colaboradores', icon: Users, to: '/colaboradores' },
-  { label: 'Produtividade', icon: Zap, to: '/produtividade' },
-  { label: 'KPIs', icon: Activity, to: '/kpis' },
-  { label: 'Ranking', icon: Trophy, to: '/ranking' },
-  { label: 'Minha Area', icon: User, to: '/minha-area' },
-] as const
+interface NavItem {
+  label: string
+  icon: ElementType
+  to: string
+  roles: ('colaborador' | 'supervisor' | 'gerente')[]
+}
+
+const navItems: NavItem[] = [
+  { label: 'Inicio', icon: Home, to: '/', roles: ['colaborador', 'supervisor', 'gerente'] },
+  { label: 'Calculo DPH', icon: BarChart3, to: '/dph', roles: ['gerente'] },
+  { label: 'Escala', icon: CalendarDays, to: '/escala', roles: ['supervisor', 'gerente'] },
+  { label: 'Ponto', icon: Fingerprint, to: '/ponto', roles: ['supervisor', 'gerente'] },
+  { label: 'Produtividade', icon: Zap, to: '/produtividade', roles: ['colaborador', 'supervisor', 'gerente'] },
+  { label: 'Saldo de Horas', icon: Clock, to: '/saldo', roles: ['supervisor', 'gerente'] },
+  { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['supervisor', 'gerente'] },
+  { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['supervisor', 'gerente'] },
+  { label: 'Ranking', icon: Trophy, to: '/ranking', roles: ['supervisor', 'gerente'] },
+  { label: 'Minha Area', icon: User, to: '/minha-area', roles: ['colaborador'] },
+]
 
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { state } = useApp()
+  const role = state.currentUser.role
+
+  const filtered = useMemo(
+    () => navItems.filter((item) => item.roles.includes(role)),
+    [role],
+  )
 
   return (
     <>
@@ -37,7 +55,7 @@ export function Sidebar() {
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 rounded-lg bg-sidebar p-2 text-sidebar-foreground lg:hidden"
+        className="fixed top-3 left-3 z-50 rounded-lg bg-sidebar p-2 text-sidebar-foreground lg:hidden"
         aria-label="Abrir menu"
       >
         <Menu className="h-5 w-5" />
@@ -62,9 +80,9 @@ export function Sidebar() {
       >
         {/* Logo */}
         <div className="flex h-16 items-center justify-between px-6">
-          <span className="text-gradient text-xl font-bold tracking-tight">
-            Orion
-          </span>
+          <NavLink to="/" onClick={() => setMobileOpen(false)}>
+            <span className="text-gradient text-xl font-bold tracking-tight">Orion</span>
+          </NavLink>
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
@@ -77,10 +95,11 @@ export function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {navItems.map(({ label, icon: Icon, to }) => (
+          {filtered.map(({ label, icon: Icon, to }) => (
             <NavLink
               key={to}
               to={to}
+              end={to === '/'}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
                 cn(
@@ -101,6 +120,7 @@ export function Sidebar() {
         <div className="border-t border-sidebar-border px-3 py-4">
           <NavLink
             to="/configuracoes"
+            onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',

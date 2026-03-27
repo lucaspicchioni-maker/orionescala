@@ -1,33 +1,85 @@
 import { NavLink } from 'react-router-dom'
+import type { ElementType } from 'react'
 import {
-  BarChart3,
+  Home,
   CalendarDays,
   Fingerprint,
+  Zap,
   User,
   MoreHorizontal,
+  BarChart3,
+  Clock,
+  Users,
+  Activity,
+  Trophy,
+  MapPin,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useApp } from '@/store/AppContext'
 
-const mainItems = [
-  { label: 'DPH', icon: BarChart3, to: '/dph' },
-  { label: 'Escala', icon: CalendarDays, to: '/escala' },
-  { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-  { label: 'Minha Area', icon: User, to: '/minha-area' },
-]
+type Role = 'colaborador' | 'supervisor' | 'gerente'
 
-const moreItems = [
-  { label: 'Produtividade', to: '/produtividade' },
-  { label: 'Saldo de Horas', to: '/saldo' },
-  { label: 'Colaboradores', to: '/colaboradores' },
-  { label: 'KPIs', to: '/kpis' },
-  { label: 'Ranking', to: '/ranking' },
-  { label: 'Check-in', to: '/checkin' },
-  { label: 'Configuracoes', to: '/configuracoes' },
-]
+interface NavItem {
+  label: string
+  icon: ElementType
+  to: string
+  roles: Role[]
+}
+
+const mainByRole: Record<Role, NavItem[]> = {
+  colaborador: [
+    { label: 'Inicio', icon: Home, to: '/', roles: ['colaborador'] },
+    { label: 'Escala', icon: CalendarDays, to: '/minha-area', roles: ['colaborador'] },
+    { label: 'Check-in', icon: MapPin, to: '/checkin', roles: ['colaborador'] },
+    { label: 'Produtiv.', icon: Zap, to: '/produtividade', roles: ['colaborador'] },
+  ],
+  supervisor: [
+    { label: 'Inicio', icon: Home, to: '/', roles: ['supervisor'] },
+    { label: 'Escala', icon: CalendarDays, to: '/escala', roles: ['supervisor'] },
+    { label: 'Ponto', icon: Fingerprint, to: '/ponto', roles: ['supervisor'] },
+    { label: 'Produtiv.', icon: Zap, to: '/produtividade', roles: ['supervisor'] },
+  ],
+  gerente: [
+    { label: 'Inicio', icon: Home, to: '/', roles: ['gerente'] },
+    { label: 'Escala', icon: CalendarDays, to: '/escala', roles: ['gerente'] },
+    { label: 'Ponto', icon: Fingerprint, to: '/ponto', roles: ['gerente'] },
+    { label: 'Produtiv.', icon: Zap, to: '/produtividade', roles: ['gerente'] },
+  ],
+}
+
+const moreByRole: Record<Role, NavItem[]> = {
+  colaborador: [
+    { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['colaborador'] },
+  ],
+  supervisor: [
+    { label: 'Saldo de Horas', icon: Clock, to: '/saldo', roles: ['supervisor'] },
+    { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['supervisor'] },
+    { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['supervisor'] },
+    { label: 'Ranking', icon: Trophy, to: '/ranking', roles: ['supervisor'] },
+    { label: 'Check-in', icon: MapPin, to: '/checkin', roles: ['supervisor'] },
+    { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['supervisor'] },
+  ],
+  gerente: [
+    { label: 'DPH', icon: BarChart3, to: '/dph', roles: ['gerente'] },
+    { label: 'Saldo de Horas', icon: Clock, to: '/saldo', roles: ['gerente'] },
+    { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['gerente'] },
+    { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['gerente'] },
+    { label: 'Ranking', icon: Trophy, to: '/ranking', roles: ['gerente'] },
+    { label: 'Minha Area', icon: User, to: '/minha-area', roles: ['gerente'] },
+    { label: 'Check-in', icon: MapPin, to: '/checkin', roles: ['gerente'] },
+    { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['gerente'] },
+  ],
+}
 
 export function BottomNav() {
   const [showMore, setShowMore] = useState(false)
+  const { state } = useApp()
+  const role = state.currentUser.role
+
+  const mainItems = useMemo(() => mainByRole[role] || mainByRole.colaborador, [role])
+  const moreItems = useMemo(() => moreByRole[role] || moreByRole.colaborador, [role])
 
   return (
     <>
@@ -50,13 +102,14 @@ export function BottomNav() {
                 onClick={() => setShowMore(false)}
                 className={({ isActive }) =>
                   cn(
-                    'rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    'flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                     isActive
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   )
                 }
               >
+                <item.icon className="h-4 w-4 shrink-0" />
                 {item.label}
               </NavLink>
             ))}
@@ -71,12 +124,11 @@ export function BottomNav() {
             <NavLink
               key={to}
               to={to}
+              end={to === '/'}
               className={({ isActive }) =>
                 cn(
                   'flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
-                  isActive
-                    ? 'text-primary'
-                    : 'text-muted-foreground',
+                  isActive ? 'text-primary' : 'text-muted-foreground',
                 )
               }
             >
@@ -84,16 +136,18 @@ export function BottomNav() {
               <span>{label}</span>
             </NavLink>
           ))}
-          <button
-            onClick={() => setShowMore((v) => !v)}
-            className={cn(
-              'flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
-              showMore ? 'text-primary' : 'text-muted-foreground',
-            )}
-          >
-            <MoreHorizontal className="h-5 w-5" />
-            <span>Mais</span>
-          </button>
+          {moreItems.length > 0 && (
+            <button
+              onClick={() => setShowMore((v) => !v)}
+              className={cn(
+                'flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
+                showMore ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              <MoreHorizontal className="h-5 w-5" />
+              <span>Mais</span>
+            </button>
+          )}
         </div>
       </nav>
     </>

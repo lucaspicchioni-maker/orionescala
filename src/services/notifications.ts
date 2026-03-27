@@ -82,16 +82,16 @@ export function generateNotificationsForSchedule(
     for (const [employeeId, shift] of employeeShifts) {
       const name = employeeNames[employeeId] || 'Colaborador'
 
+      const shiftHours = shift.hours.length
+
       for (const template of TEMPLATES) {
         // Calculate when to send
         const [startH, startM] = shift.start.split(':').map(Number)
         let scheduledFor: string
 
         if (template.type === 'schedule_published') {
-          // Send immediately (now)
           scheduledFor = new Date().toISOString()
         } else if (template.type === 'shift_end') {
-          // 30min before shift end
           const [endH, endM] = shift.end.split(':').map(Number)
           const endDate = new Date(day.date + 'T00:00:00')
           endDate.setHours(endH, endM, 0, 0)
@@ -115,9 +115,32 @@ export function generateNotificationsForSchedule(
           weekStart: schedule.weekStart,
           date: day.date,
           hour: shift.start,
-          status: template.type === 'schedule_published' ? 'pending' : 'pending',
+          status: 'pending',
           sentAt: null,
           channel: template.channel,
+        })
+      }
+
+      // Break notification for shifts >= 5 hours
+      if (shiftHours >= 5) {
+        const [startH, startM] = shift.start.split(':').map(Number)
+        // Notify ~2.5h into the shift (halfway) to take a break
+        const breakDate = new Date(day.date + 'T00:00:00')
+        breakDate.setHours(startH, startM, 0, 0)
+        breakDate.setMinutes(breakDate.getMinutes() + Math.floor(shiftHours / 2) * 60)
+
+        notifications.push({
+          id: crypto.randomUUID(),
+          employeeId,
+          type: 'break_required',
+          scheduledFor: breakDate.toISOString(),
+          message: `${name}, seu turno tem ${shiftHours}h (${shift.start}-${shift.end}). Sinalize seu horario de intervalo no app!`,
+          weekStart: schedule.weekStart,
+          date: day.date,
+          hour: shift.start,
+          status: 'pending',
+          sentAt: null,
+          channel: 'whatsapp',
         })
       }
     }

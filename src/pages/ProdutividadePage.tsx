@@ -19,6 +19,17 @@ import {
   BarChart3,
   TrendingUp,
 } from 'lucide-react'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+} from 'recharts'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
@@ -238,7 +249,49 @@ export default function ProdutividadePage() {
     )
   }, [weekGoal, teamMetrics])
 
-  // ─── Prize results ───────────────────────────────────────────────
+  // ─── History data (last 6 weeks) ──────────────────────────────────
+
+  const historyData = useMemo(() => {
+    const weeks: { label: string; weekStart: string; errors: number; errorCost: number; sla: number; expedition: number; orders: number }[] = []
+    for (let i = 5; i >= 0; i--) {
+      const ws = getWeekStart(-i + weekOffset)
+      const dates = getWeekDates(ws)
+      const records = state.productivityRecords.filter((r) => r.weekStart === ws)
+      if (records.length === 0) {
+        weeks.push({ label: formatDateShort(dates[0]), weekStart: ws, errors: 0, errorCost: 0, sla: 0, expedition: 0, orders: 0 })
+      } else {
+        weeks.push({
+          label: formatDateShort(dates[0]),
+          weekStart: ws,
+          errors: records.reduce((s, r) => s + r.totalErrors, 0),
+          errorCost: records.reduce((s, r) => s + r.errorCost, 0),
+          sla: records.reduce((s, r) => s + r.slaCompliance, 0) / records.length,
+          expedition: records.reduce((s, r) => s + r.avgExpeditionTime, 0) / records.length,
+          orders: records.reduce((s, r) => s + r.totalOrders, 0),
+        })
+      }
+    }
+    return weeks
+  }, [state.productivityRecords, weekOffset])
+
+  const individualHistoryData = useMemo(() => {
+    if (!selectedEmployeeId) return []
+    const weeks: { label: string; errors: number; sla: number; ordersPerHour: number }[] = []
+    for (let i = 5; i >= 0; i--) {
+      const ws = getWeekStart(-i + weekOffset)
+      const dates = getWeekDates(ws)
+      const records = state.productivityRecords.filter((r) => r.weekStart === ws && r.employeeId === selectedEmployeeId)
+      const totalOrders = records.reduce((s, r) => s + r.totalOrders, 0)
+      const totalHours = records.reduce((s, r) => s + r.hoursWorked, 0)
+      weeks.push({
+        label: formatDateShort(dates[0]),
+        errors: records.reduce((s, r) => s + r.totalErrors, 0),
+        sla: records.length > 0 ? records.reduce((s, r) => s + r.slaCompliance, 0) / records.length : 0,
+        ordersPerHour: totalHours > 0 ? totalOrders / totalHours : 0,
+      })
+    }
+    return weeks
+  }, [selectedEmployeeId, state.productivityRecords, weekOffset])
 
   // ─── Goal Modal Form ─────────────────────────────────────────────
 
@@ -633,6 +686,47 @@ export default function ProdutividadePage() {
                   </table>
                 </div>
               </Card>
+
+              {/* ─── History Charts (Lider) ─── */}
+              {historyData.some((w) => w.orders > 0) && (
+                <Card>
+                  <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Evolucao Semanal
+                  </h3>
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div>
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">Erros por Semana</p>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <BarChart data={historyData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(0 0% 15%)" />
+                          <XAxis dataKey="label" tick={{ fill: 'hsl(210 2% 60%)', fontSize: 11 }} />
+                          <YAxis tick={{ fill: 'hsl(210 2% 60%)', fontSize: 11 }} />
+                          <Tooltip
+                            contentStyle={{ background: 'hsl(0 0% 6%)', border: '1px solid hsl(0 0% 13%)', borderRadius: 8, fontSize: 12 }}
+                            labelStyle={{ color: 'hsl(0 0% 93.7%)' }}
+                          />
+                          <Bar dataKey="errors" fill="hsl(0 84% 60%)" radius={[4, 4, 0, 0]} name="Erros" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div>
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">SLA Atendimento (%)</p>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <LineChart data={historyData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(0 0% 15%)" />
+                          <XAxis dataKey="label" tick={{ fill: 'hsl(210 2% 60%)', fontSize: 11 }} />
+                          <YAxis domain={[0, 100]} tick={{ fill: 'hsl(210 2% 60%)', fontSize: 11 }} />
+                          <Tooltip
+                            contentStyle={{ background: 'hsl(0 0% 6%)', border: '1px solid hsl(0 0% 13%)', borderRadius: 8, fontSize: 12 }}
+                            labelStyle={{ color: 'hsl(0 0% 93.7%)' }}
+                          />
+                          <Line type="monotone" dataKey="sla" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={{ fill: 'hsl(142 71% 45%)' }} name="SLA %" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </Card>
+              )}
             </>
           ) : (
             /* No data state */
@@ -849,6 +943,41 @@ export default function ProdutividadePage() {
                     )}
                   </div>
                 </div>
+              )}
+
+              {/* ─── Individual History ─── */}
+              {individualHistoryData.some((w) => w.ordersPerHour > 0) && (
+                <Card>
+                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Minha Evolucao
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">Pedidos/Hora</p>
+                      <ResponsiveContainer width="100%" height={160}>
+                        <LineChart data={individualHistoryData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(0 0% 15%)" />
+                          <XAxis dataKey="label" tick={{ fill: 'hsl(210 2% 60%)', fontSize: 10 }} />
+                          <YAxis tick={{ fill: 'hsl(210 2% 60%)', fontSize: 10 }} />
+                          <Tooltip contentStyle={{ background: 'hsl(0 0% 6%)', border: '1px solid hsl(0 0% 13%)', borderRadius: 8, fontSize: 12 }} />
+                          <Line type="monotone" dataKey="ordersPerHour" stroke="hsl(69 100% 59%)" strokeWidth={2} dot={{ fill: 'hsl(69 100% 59%)' }} name="Ped/H" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div>
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">SLA (%)</p>
+                      <ResponsiveContainer width="100%" height={160}>
+                        <LineChart data={individualHistoryData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(0 0% 15%)" />
+                          <XAxis dataKey="label" tick={{ fill: 'hsl(210 2% 60%)', fontSize: 10 }} />
+                          <YAxis domain={[0, 100]} tick={{ fill: 'hsl(210 2% 60%)', fontSize: 10 }} />
+                          <Tooltip contentStyle={{ background: 'hsl(0 0% 6%)', border: '1px solid hsl(0 0% 13%)', borderRadius: 8, fontSize: 12 }} />
+                          <Line type="monotone" dataKey="sla" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={{ fill: 'hsl(142 71% 45%)' }} name="SLA %" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </Card>
               )}
 
               {/* No data state */}
