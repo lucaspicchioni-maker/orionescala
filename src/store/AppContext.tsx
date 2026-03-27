@@ -244,7 +244,7 @@ const defaultGoldenRules: GoldenRule[] = [
   },
 ]
 
-const defaultUser: AppState['currentUser'] = { role: 'gerente', name: 'Gerente' }
+const defaultUser: AppState['currentUser'] = { role: 'colaborador', name: '' }
 
 function getInitialState(): AppState {
   return {

@@ -1,30 +1,20 @@
 import { useState, useMemo } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import type { ElementType } from 'react'
 import {
-  BarChart3,
   CalendarDays,
-  Clock,
   Users,
-  Activity,
-  Trophy,
   Settings,
   X,
   Menu,
   Fingerprint,
-  User,
   Zap,
   Home,
-  FileDown,
-  History,
-  ArrowLeftRight,
-  Wallet,
-  Star,
-  Shield,
-  UserCog,
-  Calculator,
   ClipboardList,
   MapPin,
+  UserCog,
+  Calculator,
+  LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
@@ -37,187 +27,69 @@ interface NavItem {
   to: string
 }
 
-interface NavGroup {
-  title: string
-  items: NavItem[]
+// Max ~6 items per role. Clean, focused, no clutter.
+const navByRole: Record<Role, NavItem[]> = {
+  admin: [
+    { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Escala', icon: CalendarDays, to: '/escala' },
+    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
+    { label: 'Produtividade', icon: Zap, to: '/produtividade' },
+    { label: 'Equipe', icon: Users, to: '/colaboradores' },
+    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+  ],
+  gerente: [
+    { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Escala', icon: CalendarDays, to: '/escala' },
+    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
+    { label: 'Produtividade', icon: Zap, to: '/produtividade' },
+    { label: 'Equipe', icon: Users, to: '/colaboradores' },
+    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+  ],
+  supervisor: [
+    { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Escala', icon: CalendarDays, to: '/escala' },
+    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
+    { label: 'Produtividade', icon: Zap, to: '/produtividade' },
+    { label: 'Equipe', icon: Users, to: '/colaboradores' },
+    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+  ],
+  rh: [
+    { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Painel RH', icon: UserCog, to: '/rh' },
+    { label: 'Equipe', icon: Users, to: '/colaboradores' },
+    { label: 'Dimensionamento', icon: Calculator, to: '/dimensionamento' },
+    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+  ],
+  colaborador: [
+    { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Minha Escala', icon: CalendarDays, to: '/minha-area' },
+    { label: 'Check-in', icon: MapPin, to: '/checkin' },
+    { label: 'Produtividade', icon: Zap, to: '/produtividade' },
+  ],
 }
 
-function getNavGroups(role: Role): NavGroup[] {
-  if (role === 'admin') {
-    return [
-      {
-        title: '',
-        items: [
-          { label: 'Inicio', icon: Home, to: '/' },
-        ],
-      },
-      {
-        title: 'Operacao',
-        items: [
-          { label: 'Escala', icon: CalendarDays, to: '/escala' },
-          { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-          { label: 'Check-in', icon: MapPin, to: '/checkin' },
-          { label: 'Produtividade', icon: Zap, to: '/produtividade' },
-          { label: 'Troca de Turno', icon: ArrowLeftRight, to: '/troca-turno' },
-        ],
-      },
-      {
-        title: 'Analise',
-        items: [
-          { label: 'KPIs', icon: Activity, to: '/kpis' },
-          { label: 'Ranking', icon: Trophy, to: '/ranking' },
-          { label: 'Calculo DPH', icon: BarChart3, to: '/dph' },
-          { label: 'Regras de Ouro', icon: Shield, to: '/regras' },
-          { label: 'Relatorio Layer', icon: ClipboardList, to: '/relatorio-layer' },
-        ],
-      },
-      {
-        title: 'Pessoas',
-        items: [
-          { label: 'Colaboradores', icon: Users, to: '/colaboradores' },
-          { label: 'Painel RH', icon: UserCog, to: '/rh' },
-          { label: 'Avaliacao', icon: Star, to: '/feedback' },
-          { label: 'Dimensionamento', icon: Calculator, to: '/dimensionamento' },
-        ],
-      },
-      {
-        title: 'Horas & Historico',
-        items: [
-          { label: 'Saldo de Horas', icon: Clock, to: '/saldo' },
-          { label: 'Banco de Horas', icon: Wallet, to: '/banco-horas' },
-          { label: 'Hist. Presenca', icon: History, to: '/historico-presenca' },
-          { label: 'Relatorios CSV', icon: FileDown, to: '/relatorios' },
-        ],
-      },
-    ]
-  }
-
-  if (role === 'gerente') {
-    return [
-      {
-        title: '',
-        items: [
-          { label: 'Inicio', icon: Home, to: '/' },
-        ],
-      },
-      {
-        title: 'Operacao',
-        items: [
-          { label: 'Escala', icon: CalendarDays, to: '/escala' },
-          { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-          { label: 'Produtividade', icon: Zap, to: '/produtividade' },
-        ],
-      },
-      {
-        title: 'Analise',
-        items: [
-          { label: 'KPIs', icon: Activity, to: '/kpis' },
-          { label: 'Ranking', icon: Trophy, to: '/ranking' },
-          { label: 'Calculo DPH', icon: BarChart3, to: '/dph' },
-          { label: 'Regras de Ouro', icon: Shield, to: '/regras' },
-          { label: 'Relatorio Layer', icon: ClipboardList, to: '/relatorio-layer' },
-        ],
-      },
-      {
-        title: 'Pessoas & Horas',
-        items: [
-          { label: 'Colaboradores', icon: Users, to: '/colaboradores' },
-          { label: 'Banco de Horas', icon: Wallet, to: '/banco-horas' },
-          { label: 'Relatorios CSV', icon: FileDown, to: '/relatorios' },
-        ],
-      },
-    ]
-  }
-
-  if (role === 'supervisor') {
-    return [
-      {
-        title: '',
-        items: [
-          { label: 'Inicio', icon: Home, to: '/' },
-        ],
-      },
-      {
-        title: 'Operacao',
-        items: [
-          { label: 'Escala', icon: CalendarDays, to: '/escala' },
-          { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-          { label: 'Produtividade', icon: Zap, to: '/produtividade' },
-          { label: 'Troca de Turno', icon: ArrowLeftRight, to: '/troca-turno' },
-        ],
-      },
-      {
-        title: 'Analise',
-        items: [
-          { label: 'KPIs', icon: Activity, to: '/kpis' },
-          { label: 'Ranking', icon: Trophy, to: '/ranking' },
-          { label: 'Relatorio Layer', icon: ClipboardList, to: '/relatorio-layer' },
-        ],
-      },
-      {
-        title: 'Equipe',
-        items: [
-          { label: 'Colaboradores', icon: Users, to: '/colaboradores' },
-          { label: 'Banco de Horas', icon: Wallet, to: '/banco-horas' },
-          { label: 'Avaliacao', icon: Star, to: '/feedback' },
-          { label: 'Relatorios CSV', icon: FileDown, to: '/relatorios' },
-        ],
-      },
-    ]
-  }
-
-  if (role === 'rh') {
-    return [
-      {
-        title: '',
-        items: [
-          { label: 'Inicio', icon: Home, to: '/' },
-          { label: 'Painel RH', icon: UserCog, to: '/rh' },
-        ],
-      },
-      {
-        title: 'Pessoas',
-        items: [
-          { label: 'Colaboradores', icon: Users, to: '/colaboradores' },
-          { label: 'Dimensionamento', icon: Calculator, to: '/dimensionamento' },
-          { label: 'Avaliacao', icon: Star, to: '/feedback' },
-        ],
-      },
-      {
-        title: 'Acompanhamento',
-        items: [
-          { label: 'Hist. Presenca', icon: History, to: '/historico-presenca' },
-          { label: 'Banco de Horas', icon: Wallet, to: '/banco-horas' },
-          { label: 'KPIs', icon: Activity, to: '/kpis' },
-          { label: 'Relatorio Layer', icon: ClipboardList, to: '/relatorio-layer' },
-          { label: 'Relatorios CSV', icon: FileDown, to: '/relatorios' },
-        ],
-      },
-    ]
-  }
-
-  // colaborador
-  return [
-    {
-      title: '',
-      items: [
-        { label: 'Inicio', icon: Home, to: '/' },
-        { label: 'Minha Escala', icon: CalendarDays, to: '/minha-area' },
-        { label: 'Check-in', icon: MapPin, to: '/checkin' },
-        { label: 'Produtividade', icon: Zap, to: '/produtividade' },
-        { label: 'Troca de Turno', icon: ArrowLeftRight, to: '/troca-turno' },
-        { label: 'Hist. Presenca', icon: History, to: '/historico-presenca' },
-      ],
-    },
-  ]
+const ROLE_LABELS: Record<Role, string> = {
+  admin: 'Admin',
+  gerente: 'Gerente',
+  supervisor: 'Supervisor',
+  rh: 'RH',
+  colaborador: 'Colaborador',
 }
 
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const { state } = useApp()
+  const { state, dispatch } = useApp()
+  const navigate = useNavigate()
   const role = state.currentUser.role
 
-  const groups = useMemo(() => getNavGroups(role), [role])
+  const items = useMemo(() => navByRole[role] || navByRole.colaborador, [role])
+
+  function logout() {
+    dispatch({ type: 'SET_CURRENT_USER', payload: { name: '', role: 'colaborador' } })
+    localStorage.removeItem('orion_logged_employee')
+    navigate('/')
+    setMobileOpen(false)
+  }
 
   return (
     <>
@@ -242,92 +114,92 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'glass-strong fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-sidebar-border bg-sidebar',
+          'glass-strong fixed inset-y-0 left-0 z-50 flex w-52 flex-col border-r border-sidebar-border bg-sidebar',
           'transition-transform duration-300 ease-in-out',
           'lg:translate-x-0 lg:static lg:z-auto',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        {/* Logo */}
+        {/* Header */}
         <div className="flex h-14 items-center justify-between px-5">
-          <NavLink to="/" onClick={() => setMobileOpen(false)}>
+          <NavLink to="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2">
             <span className="text-gradient text-lg font-bold tracking-tight">Orion</span>
           </NavLink>
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
             className="rounded-md p-1 text-sidebar-foreground hover:text-foreground lg:hidden"
-            aria-label="Fechar menu"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Role badge */}
-        <div className="px-5 pb-2">
-          <span className={cn(
-            'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
-            role === 'admin' ? 'bg-primary/15 text-primary' :
-              role === 'gerente' ? 'bg-accent/15 text-accent' :
-                role === 'supervisor' ? 'bg-warning/15 text-warning' :
-                  role === 'rh' ? 'bg-success/15 text-success' :
-                    'bg-muted text-muted-foreground',
-          )}>
-            {role === 'admin' ? 'Admin' : role}
-          </span>
+        <div className="px-5 pb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-sidebar-foreground/60">{state.currentUser.name}</span>
+            <span className={cn(
+              'rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider',
+              role === 'admin' ? 'bg-primary/15 text-primary' :
+                role === 'gerente' ? 'bg-accent/15 text-accent' :
+                  role === 'supervisor' ? 'bg-warning/15 text-warning' :
+                    role === 'rh' ? 'bg-success/15 text-success' :
+                      'bg-muted text-muted-foreground',
+            )}>
+              {ROLE_LABELS[role]}
+            </span>
+          </div>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 pb-4">
-          {groups.map((group, gi) => (
-            <div key={gi} className={gi > 0 ? 'mt-4' : ''}>
-              {group.title && (
-                <div className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
-                  {group.title}
-                </div>
-              )}
-              <div className="space-y-0.5">
-                {group.items.map(({ label, icon: Icon, to }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={to === '/'}
-                    onClick={() => setMobileOpen(false)}
-                    className={({ isActive }) =>
-                      cn(
-                        'group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
-                        isActive
-                          ? 'text-sidebar-primary bg-sidebar-primary/8'
-                          : 'text-sidebar-foreground hover:text-foreground hover:bg-white/5',
-                      )
-                    }
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span>{label}</span>
-                  </NavLink>
-                ))}
-              </div>
-            </div>
-          ))}
+        {/* Nav - clean, short list */}
+        <nav className="flex-1 px-3">
+          <div className="space-y-1">
+            {items.map(({ label, icon: Icon, to }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === '/'}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'text-sidebar-primary bg-sidebar-primary/8'
+                      : 'text-sidebar-foreground hover:text-foreground hover:bg-white/5',
+                  )
+                }
+              >
+                <Icon className="h-[18px] w-[18px] shrink-0" />
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </div>
         </nav>
 
-        {/* Bottom */}
-        <div className="border-t border-sidebar-border px-3 py-3">
+        {/* Bottom: Config + Logout */}
+        <div className="border-t border-sidebar-border px-3 py-3 space-y-1">
           <NavLink
             to="/configuracoes"
             onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isActive
                   ? 'text-sidebar-primary'
                   : 'text-sidebar-foreground hover:text-foreground hover:bg-white/5',
               )
             }
           >
-            <Settings className="h-4 w-4 shrink-0" />
+            <Settings className="h-[18px] w-[18px] shrink-0" />
             <span>Configuracoes</span>
           </NavLink>
+          <button
+            onClick={logout}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+          >
+            <LogOut className="h-[18px] w-[18px] shrink-0" />
+            <span>Sair</span>
+          </button>
         </div>
       </aside>
     </>

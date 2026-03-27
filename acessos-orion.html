@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Orion Escala - Credenciais de Acesso</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #0a0a0a;
+      color: #e5e5e5;
+      padding: 48px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    @media print {
+      body { padding: 24px; background: #0a0a0a; }
+      .no-print { display: none; }
+    }
+
+    .container { max-width: 800px; margin: 0 auto; }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid #222;
+    }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px; height: 64px;
+      border-radius: 16px;
+      background: rgba(205, 254, 0, 0.1);
+      margin-bottom: 16px;
+    }
+    .logo svg { width: 32px; height: 32px; color: #cdfe00; }
+    .header h1 {
+      font-size: 32px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #cdfe00, #a0cc00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+    .header p { color: #888; font-size: 14px; margin-top: 8px; }
+    .header .date { color: #555; font-size: 12px; margin-top: 4px; }
+
+    /* Section */
+    .section { margin-bottom: 40px; }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #666;
+      margin-bottom: 16px;
+    }
+
+    /* Access Card */
+    .card {
+      border: 1px solid #222;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+      background: #111;
+      page-break-inside: avoid;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .card-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .card-icon.admin { background: rgba(205, 254, 0, 0.12); color: #cdfe00; }
+    .card-icon.gerente { background: rgba(168, 85, 247, 0.12); color: #a855f7; }
+    .card-icon.supervisor { background: rgba(234, 179, 8, 0.12); color: #eab308; }
+    .card-icon.rh { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+    .card-icon.colaborador { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
+
+    .card-title { font-size: 18px; font-weight: 700; color: #f5f5f5; }
+    .card-subtitle { font-size: 12px; color: #888; margin-top: 2px; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge.admin { background: rgba(205, 254, 0, 0.15); color: #cdfe00; }
+    .badge.gerente { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+    .badge.supervisor { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+    .badge.rh { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .badge.colaborador { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+
+    /* Credentials */
+    .creds {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .cred-box {
+      background: #0a0a0a;
+      border: 1px solid #1a1a1a;
+      border-radius: 10px;
+      padding: 12px 16px;
+    }
+    .cred-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .cred-value { font-size: 15px; font-weight: 600; color: #f5f5f5; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+    /* Features list */
+    .features { list-style: none; }
+    .features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 13px;
+      color: #aaa;
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+    .features li .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+    .dot.admin { background: #cdfe00; }
+    .dot.gerente { background: #a855f7; }
+    .dot.supervisor { background: #eab308; }
+    .dot.rh { background: #22c55e; }
+    .dot.colaborador { background: #3b82f6; }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding-top: 32px;
+      border-top: 1px solid #222;
+      margin-top: 40px;
+    }
+    .footer p { font-size: 11px; color: #555; line-height: 1.8; }
+    .footer strong { color: #888; }
+
+    .print-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #cdfe00;
+      color: #0a0a0a;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 32px;
+    }
+    .print-btn:hover { background: #b8e600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div style="text-align:center" class="no-print">
+      <button class="print-btn" onclick="window.print()">Salvar como PDF</button>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      <h1>Orion Escala</h1>
+      <p>Credenciais de Acesso ao Sistema</p>
+      <div class="date">Documento gerado em 27/03/2026 &mdash; Confidencial</div>
+    </div>
+
+    <!-- ADMIN -->
+    <div class="section">
+      <div class="section-title">Acessos do Sistema</div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon admin">L</div>
+          <div>
+            <div class="card-title">Lucas Picchioni <span class="badge admin">Admin</span></div>
+            <div class="card-subtitle">Acesso total &mdash; todas as funcionalidades do sistema</div>
+          </div>
+        </div>
+        <div class="creds">
+          <div class="cred-box">
+            <div class="cred-label">Email</div>
+            <div class="cred-value">lucas@orion.com</div>
+          </div>
+          <div class="cred-box">
+            <div class="cred-label">Senha</div>
+            <div class="cred-value">lucas123</div>
+          </div>
+        </div>
+        <ul class="features">
+          <li><span class="dot admin"></span>Visao completa de escala, ponto, produtividade e check-in</li>
+          <li><span class="dot admin"></span>KPIs, ranking, calculo DPH e regras de ouro</li>
+          <li><span class="dot admin"></span>Painel RH, dimensionamento e avaliacoes</li>
+          <li><span class="dot admin"></span>Relatorios analiticos por layer e exportacao CSV</li>
+          <li><span class="dot admin"></span>Banco de horas, historico de presenca e configuracoes</li>
+        </ul>
+      </div>
+
+      <!-- GERENTE -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon gerente">V</div>
+          <div>
+            <div class="card-title">Vivian Faria <span class="badge gerente">Gerente</span></div>
+            <div class="card-subtitle">Gestao estrategica da operacao</div>
+          </div>
+        </div>
+        <div class="creds">
+          <div class="cred-box">
+            <div class="cred-label">Email</div>
+            <div class="cred-value">vivian@orion.com</div>
+          </div>
+          <div class="cred-box">
+            <div class="cred-label">Senha</div>
+            <div class="cred-value">vivian123</div>
+          </div>
+        </div>
+        <ul class="features">
+          <li><span class="dot gerente"></span>Montar e publicar escala semanal</li>
+          <li><span class="dot gerente"></span>Controle de ponto, produtividade, erros e SLA</li>
+          <li><span class="dot gerente"></span>KPIs, ranking e calculo DPH (demanda por hora)</li>
+          <li><span class="dot gerente"></span>Regras de ouro e relatorio analitico por layer</li>
+          <li><span class="dot gerente"></span>Gestao de colaboradores, banco de horas e relatorios CSV</li>
+        </ul>
+      </div>
+
+      <!-- SUPERVISOR -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon supervisor">S</div>
+          <div>
+            <div class="card-title">Supervisor Orion <span class="badge supervisor">Supervisor</span></div>
+            <div class="card-subtitle">Gestao operacional da equipe no dia a dia</div>
+          </div>
+        </div>
+        <div class="creds">
+          <div class="cred-box">
+            <div class="cred-label">Email</div>
+            <div class="cred-value">supervisor@orion.com</div>
+          </div>
+          <div class="cred-box">
+            <div class="cred-label">Senha</div>
+            <div class="cred-value">super123</div>
+          </div>
+        </div>
+        <ul class="features">
+          <li><span class="dot supervisor"></span>Montar escala e gerenciar ponto diario</li>
+          <li><span class="dot supervisor"></span>Lancar dados semanais de produtividade</li>
+          <li><span class="dot supervisor"></span>Aprovar/rejeitar trocas de turno</li>
+          <li><span class="dot supervisor"></span>KPIs, ranking e relatorio analitico por layer</li>
+          <li><span class="dot supervisor"></span>Gestao de colaboradores, avaliacoes e banco de horas</li>
+        </ul>
+      </div>
+
+      <!-- RH -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon rh">R</div>
+          <div>
+            <div class="card-title">RH Orion <span class="badge rh">RH</span></div>
+            <div class="card-subtitle">Monitoramento de pessoas e necessidade de contratacao</div>
+          </div>
+        </div>
+        <div class="creds">
+          <div class="cred-box">
+            <div class="cred-label">Email</div>
+            <div class="cred-value">rh@orion.com</div>
+          </div>
+          <div class="cred-box">
+            <div class="cred-label">Senha</div>
+            <div class="cred-value">rh1234</div>
+          </div>
+        </div>
+        <ul class="features">
+          <li><span class="dot rh"></span>Painel RH com indicadores de absenteismo e contratacao</li>
+          <li><span class="dot rh"></span>Calculadora de dimensionamento de equipe</li>
+          <li><span class="dot rh"></span>Cadastro e gestao de colaboradores</li>
+          <li><span class="dot rh"></span>Avaliacoes, historico de presenca e banco de horas</li>
+          <li><span class="dot rh"></span>Relatorios analiticos e exportacao CSV</li>
+        </ul>
+      </div>
+
+      <!-- COLABORADOR -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon colaborador">M</div>
+          <div>
+            <div class="card-title">Miguel / Anna <span class="badge colaborador">Colaborador</span></div>
+            <div class="card-subtitle">Acesso individual do funcionario</div>
+          </div>
+        </div>
+        <div class="creds">
+          <div class="cred-box">
+            <div class="cred-label">Email</div>
+            <div class="cred-value">miguel@orion.com</div>
+          </div>
+          <div class="cred-box">
+            <div class="cred-label">Senha</div>
+            <div class="cred-value">miguel123</div>
+          </div>
+        </div>
+        <div class="creds">
+          <div class="cred-box">
+            <div class="cred-label">Email</div>
+            <div class="cred-value">anna@orion.com</div>
+          </div>
+          <div class="cred-box">
+            <div class="cred-label">Senha</div>
+            <div class="cred-value">anna1234</div>
+          </div>
+        </div>
+        <ul class="features">
+          <li><span class="dot colaborador"></span>Ver sua escala da semana e confirmar turnos</li>
+          <li><span class="dot colaborador"></span>Check-in e check-out por GPS (geolocalizacao)</li>
+          <li><span class="dot colaborador"></span>Acompanhar produtividade, metas e premios</li>
+          <li><span class="dot colaborador"></span>Solicitar troca de turno</li>
+          <li><span class="dot colaborador"></span>Historico de presenca pessoal</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>
+        <strong>Orion Escala</strong> &mdash; Sistema de gestao de escala e operacao<br>
+        Orion Cloud Kitchens &mdash; Rua Grao Mogol 99, Sion, BH<br><br>
+        Documento confidencial. Nao compartilhe senhas com terceiros.<br>
+        Para alterar credenciais, acesse Configuracoes dentro do sistema.
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>
