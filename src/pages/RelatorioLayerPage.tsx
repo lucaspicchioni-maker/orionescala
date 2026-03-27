@@ -13,7 +13,6 @@ import {
   ThumbsDown,
   Users,
   Clock,
-  Zap,
   Target,
   TrendingUp,
   UserMinus,
@@ -565,7 +564,6 @@ export default function RelatorioLayerPage() {
 function VerdictCard({ positives, negatives, violations, layer }: {
   positives: number; negatives: number; violations: number; layer: string
 }) {
-  const score = positives * 2 - negatives - violations * 3
   const isGood = violations === 0 && negatives <= 1
   const isOk = violations <= 2 && negatives <= 3
   const verdict = isGood ? 'Excelente' : isOk ? 'Atencao' : 'Critico'
