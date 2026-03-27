@@ -246,7 +246,16 @@ const defaultGoldenRules: GoldenRule[] = [
 
 const defaultUser: AppState['currentUser'] = { role: 'colaborador', name: '' }
 
+// Valid login names — if localStorage has a name not in this list, force logout
+const VALID_NAMES = ['Lucas', 'Vívian', 'Supervisor', 'RH', 'Miguel', 'Anna']
+
 function getInitialState(): AppState {
+  let currentUser = loadFromStorage<AppState['currentUser']>(LS_CURRENT_USER, defaultUser)
+  // Force logout if saved user is from old system or invalid
+  if (currentUser.name && !VALID_NAMES.includes(currentUser.name)) {
+    currentUser = defaultUser
+    localStorage.removeItem(LS_CURRENT_USER)
+  }
   return {
     employees: loadFromStorage<Employee[]>(LS_EMPLOYEES, defaultEmployees),
     schedules: loadFromStorage<WeekSchedule[]>(LS_SCHEDULES, []),
@@ -264,7 +273,7 @@ function getInitialState(): AppState {
     theme: loadFromStorage<'dark' | 'light'>(LS_THEME, 'dark'),
     onboardingDone: loadFromStorage<boolean>(LS_ONBOARDING, false),
     currentWeek: getMonday(),
-    currentUser: loadFromStorage<AppState['currentUser']>(LS_CURRENT_USER, defaultUser),
+    currentUser,
   }
 }
 
