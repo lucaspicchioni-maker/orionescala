@@ -4,11 +4,8 @@ import type { ElementType } from 'react'
 import {
   CalendarDays,
   Users,
-  Settings,
   X,
   Menu,
-  Fingerprint,
-  Zap,
   Home,
   ClipboardList,
   MapPin,
@@ -27,29 +24,23 @@ interface NavItem {
   to: string
 }
 
-// Max ~6 items per role. Clean, focused, no clutter.
+// Max 4 items per role. Ultra clean.
 const navByRole: Record<Role, NavItem[]> = {
   admin: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
-    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-    { label: 'Produtividade', icon: Zap, to: '/produtividade' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
     { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
   ],
   gerente: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
-    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-    { label: 'Produtividade', icon: Zap, to: '/produtividade' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
     { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
   ],
   supervisor: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
-    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-    { label: 'Produtividade', icon: Zap, to: '/produtividade' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
     { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
   ],
@@ -57,14 +48,12 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Painel RH', icon: UserCog, to: '/rh' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
-    { label: 'Dimensionamento', icon: Calculator, to: '/dimensionamento' },
-    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
   ],
   colaborador: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Minha Escala', icon: CalendarDays, to: '/minha-area' },
     { label: 'Check-in', icon: MapPin, to: '/checkin' },
-    { label: 'Produtividade', icon: Zap, to: '/produtividade' },
   ],
 }
 
@@ -176,23 +165,8 @@ export function Sidebar() {
           </div>
         </nav>
 
-        {/* Bottom: Config + Logout */}
-        <div className="border-t border-sidebar-border px-3 py-3 space-y-1">
-          <NavLink
-            to="/configuracoes"
-            onClick={() => setMobileOpen(false)}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                isActive
-                  ? 'text-sidebar-primary'
-                  : 'text-sidebar-foreground hover:text-foreground hover:bg-white/5',
-              )
-            }
-          >
-            <Settings className="h-[18px] w-[18px] shrink-0" />
-            <span>Configuracoes</span>
-          </NavLink>
+        {/* Logout */}
+        <div className="border-t border-sidebar-border px-3 py-3">
           <button
             onClick={logout}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"

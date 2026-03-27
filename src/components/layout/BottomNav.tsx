@@ -3,14 +3,11 @@ import type { ElementType } from 'react'
 import {
   Home,
   CalendarDays,
-  Fingerprint,
-  Zap,
   MapPin,
   Users,
   UserCog,
   ClipboardList,
   Calculator,
-  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMemo } from 'react'
@@ -24,42 +21,36 @@ interface NavItem {
   to: string
 }
 
-// Mobile: max 5 items. That's it.
+// Mobile: max 4 items. Ultra clean.
 const bottomByRole: Record<Role, NavItem[]> = {
   admin: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
-    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-    { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
-    { label: 'Config', icon: Settings, to: '/configuracoes' },
+    { label: 'Equipe', icon: Users, to: '/colaboradores' },
+    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
   ],
   gerente: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
-    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-    { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
-    { label: 'Relatorio', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'Equipe', icon: Users, to: '/colaboradores' },
+    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
   ],
   supervisor: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/escala' },
-    { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
-    { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
+    { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
   ],
   rh: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Painel', icon: UserCog, to: '/rh' },
     { label: 'Equipe', icon: Users, to: '/colaboradores' },
     { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
-    { label: 'Relatorio', icon: ClipboardList, to: '/relatorio-layer' },
   ],
   colaborador: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/minha-area' },
     { label: 'Check-in', icon: MapPin, to: '/checkin' },
-    { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
-    { label: 'Config', icon: Settings, to: '/configuracoes' },
   ],
 }
 
