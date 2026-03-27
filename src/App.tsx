@@ -29,6 +29,7 @@ import DashboardAoVivoPage from '@/pages/DashboardAoVivoPage'
 import MuralPage from '@/pages/MuralPage'
 import CustosOperacionaisPage from '@/pages/CustosOperacionaisPage'
 import AvaliacaoTurnoPage from '@/pages/AvaliacaoTurnoPage'
+import WhatsAppPage from '@/pages/WhatsAppPage'
 
 function AppRoutes() {
   const { state } = useApp()
@@ -73,6 +74,7 @@ function AppRoutes() {
           <Route path="/mural" element={<MuralPage />} />
           <Route path="/custos" element={<CustosOperacionaisPage />} />
           <Route path="/avaliacao-turno" element={<AvaliacaoTurnoPage />} />
+          <Route path="/whatsapp" element={<WhatsAppPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

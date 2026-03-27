@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useApp } from '@/store/AppContext'
+import { cn, formatCurrency } from '@/lib/utils'
 import {
   Calculator,
   Users,
@@ -11,6 +12,7 @@ import {
   Clock,
   Target,
   BarChart3,
+  FlaskConical,
 } from 'lucide-react'
 
 /**
@@ -139,6 +141,63 @@ export default function DimensionamentoPage() {
 
   const isDeficit = calc.deficit > 0
   const isSurplus = calc.deficit < 0
+
+  // ── SIMULATOR STATE ──
+  const [simFaltas, setSimFaltas] = useState(0)
+  const [simDemandaPct, setSimDemandaPct] = useState(0)
+  const [simTurnoverExtra, setSimTurnoverExtra] = useState(0)
+
+  const simulateScenario = useCallback((faltas: number, demandaPct: number, turnoverExtra: number) => {
+    const simWeeklyOrders = Math.round(weeklyOrders * (1 + demandaPct / 100))
+    const simActive = Math.max(0, activeEmployees.length - faltas)
+
+    const totalPersonHoursNeeded = simWeeklyOrders / ordersPerPersonHour
+    const weeklyHoursPerPerson = hoursPerDay * daysPerWeek > 44 ? 44 : hoursPerDay * daysPerWeek
+    const baseFTE = totalPersonHoursNeeded / weeklyHoursPerPerson
+    const withAbsenteeism = baseFTE / (1 - absenteeismRate / 100)
+    const withVacation = withAbsenteeism / (1 - vacationBuffer / 100)
+    const minCoverageNeed = minPerSlot * hoursPerDay
+    const minFTE = (minCoverageNeed * daysPerWeek) / weeklyHoursPerPerson
+    const finalNeed = Math.max(withVacation, minFTE)
+
+    const headcountNeeded = Math.ceil(finalNeed)
+    const deficit = headcountNeeded - simActive
+
+    const simTurnover = turnoverRate + turnoverExtra
+    const monthlyLoss = Math.ceil(simActive * (simTurnover / 100))
+    const hiringNeedWithTurnover = Math.max(0, deficit) + monthlyLoss
+
+    const avgMonthlyCost = activeEmployees.length > 0
+      ? activeEmployees.reduce((s, e) => s + e.monthlyCost, 0) / activeEmployees.length
+      : 2000
+    const hiringCost = hiringNeedWithTurnover * avgMonthlyCost
+
+    return {
+      weeklyOrders: simWeeklyOrders,
+      headcountNeeded,
+      currentActive: simActive,
+      deficit,
+      monthlyLoss,
+      hiringNeedWithTurnover,
+      projectedCost: Math.round(hiringCost),
+      isCritical: deficit > 2,
+    }
+  }, [weeklyOrders, ordersPerPersonHour, hoursPerDay, daysPerWeek, absenteeismRate, vacationBuffer, turnoverRate, minPerSlot, activeEmployees])
+
+  const baseScenario = useMemo(() => simulateScenario(0, 0, 0), [simulateScenario])
+  const customScenario = useMemo(() => simulateScenario(simFaltas, simDemandaPct, simTurnoverExtra), [simulateScenario, simFaltas, simDemandaPct, simTurnoverExtra])
+
+  const presets = [
+    { label: 'E se 2 faltas hoje?', faltas: 2, demanda: 0, turnover: 0 },
+    { label: 'E se demanda +20%?', faltas: 0, demanda: 20, turnover: 0 },
+    { label: 'E se demanda -20%?', faltas: 0, demanda: -20, turnover: 0 },
+  ] as const
+
+  const [activePreset, setActivePreset] = useState<number | null>(null)
+
+  const displayScenario = activePreset !== null
+    ? simulateScenario(presets[activePreset].faltas, presets[activePreset].demanda, presets[activePreset].turnover)
+    : customScenario
 
   return (
     <div className="space-y-4 p-3 sm:space-y-6 sm:p-4 lg:p-6 animate-fade-in">
@@ -323,6 +382,133 @@ export default function DimensionamentoPage() {
           <span>Total ativos: <strong className="text-foreground">{activeEmployees.length}</strong></span>
           <span>Ferias: <strong className="text-warning">{onVacation.length}</strong></span>
           <span>Inativos: <strong className="text-destructive">{inactive.length}</strong></span>
+        </div>
+      </div>
+
+      {/* ── SIMULADOR DE CENARIOS ── */}
+      <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <FlaskConical className="h-4 w-4 text-chart-3" /> Simulador de Cenarios
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Crie cenarios hipoteticos para antecipar necessidades de contratacao e custos.
+        </p>
+
+        {/* Preset buttons */}
+        <div className="flex flex-wrap gap-2">
+          {presets.map((preset, idx) => (
+            <button
+              key={idx}
+              onClick={() => {
+                setActivePreset(activePreset === idx ? null : idx)
+              }}
+              className={cn(
+                'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+                activePreset === idx
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border bg-secondary text-muted-foreground hover:bg-secondary/80'
+              )}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom scenario form */}
+        <div className="rounded-lg border border-dashed border-border p-3">
+          <div className="mb-2 text-xs font-medium text-foreground">Cenario personalizado</div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="mb-0.5 block text-[11px] text-muted-foreground">Extra faltas</label>
+              <input
+                type="number"
+                value={simFaltas}
+                onChange={e => { setSimFaltas(parseInt(e.target.value) || 0); setActivePreset(null) }}
+                min={0}
+                className="w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm text-foreground text-right"
+              />
+            </div>
+            <div>
+              <label className="mb-0.5 block text-[11px] text-muted-foreground">Variacao demanda %</label>
+              <input
+                type="number"
+                value={simDemandaPct}
+                onChange={e => { setSimDemandaPct(parseFloat(e.target.value) || 0); setActivePreset(null) }}
+                className="w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm text-foreground text-right"
+              />
+            </div>
+            <div>
+              <label className="mb-0.5 block text-[11px] text-muted-foreground">Turnover extra %</label>
+              <input
+                type="number"
+                value={simTurnoverExtra}
+                onChange={e => { setSimTurnoverExtra(parseFloat(e.target.value) || 0); setActivePreset(null) }}
+                min={0}
+                className="w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm text-foreground text-right"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Side-by-side comparison */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {/* Base scenario card */}
+          <div className="rounded-xl border border-border bg-secondary/30 p-4 space-y-2">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cenario Base</div>
+            <div className="space-y-1.5 text-xs">
+              <Row label="Quadro necessario" value={`${baseScenario.headcountNeeded}`} bold />
+              <Row label="Quadro atual" value={`${baseScenario.currentActive}`} />
+              <Row
+                label={baseScenario.deficit > 0 ? 'Deficit' : 'Excedente'}
+                value={`${Math.abs(baseScenario.deficit)} pessoas`}
+                color={baseScenario.deficit > 0 ? 'text-destructive' : 'text-success'}
+                bold
+              />
+              <Row label="Custo projetado" value={formatCurrency(baseScenario.projectedCost)} />
+            </div>
+          </div>
+
+          {/* Simulated scenario card */}
+          <div className={cn(
+            'rounded-xl border-2 p-4 space-y-2',
+            displayScenario.isCritical
+              ? 'border-destructive/40 bg-destructive/5'
+              : 'border-success/40 bg-success/5'
+          )}>
+            <div className={cn(
+              'text-xs font-semibold uppercase tracking-wide',
+              displayScenario.isCritical ? 'text-destructive' : 'text-success'
+            )}>
+              Cenario Simulado
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <Row label="Quadro necessario" value={`${displayScenario.headcountNeeded}`} bold />
+              <Row label="Quadro atual" value={`${displayScenario.currentActive}`} />
+              <Row
+                label={displayScenario.deficit > 0 ? 'Deficit' : 'Excedente'}
+                value={`${Math.abs(displayScenario.deficit)} pessoas`}
+                color={displayScenario.deficit > 0 ? 'text-destructive' : 'text-success'}
+                bold
+              />
+              <Row label="Custo projetado" value={formatCurrency(displayScenario.projectedCost)} />
+            </div>
+            <div className={cn(
+              'mt-2 flex items-center gap-1.5 rounded-lg p-2 text-xs font-medium',
+              displayScenario.isCritical ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'
+            )}>
+              {displayScenario.isCritical ? (
+                <>
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Cenario critico — deficit elevado
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  Cenario gerenciavel
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

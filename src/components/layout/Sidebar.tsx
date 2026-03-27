@@ -20,6 +20,7 @@ import {
   Megaphone,
   Star,
   Clock,
+  MessageCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
@@ -41,6 +42,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Custos', icon: DollarSign, to: '/custos' },
     { label: 'Regras', icon: Shield, to: '/regras' },
     { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'WhatsApp', icon: MessageCircle, to: '/whatsapp' },
     { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
   gerente: [
@@ -52,6 +54,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
     { label: 'Regras', icon: Shield, to: '/regras' },
     { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+    { label: 'WhatsApp', icon: MessageCircle, to: '/whatsapp' },
     { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
   supervisor: [
