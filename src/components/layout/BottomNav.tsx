@@ -20,12 +20,14 @@ import {
   Wallet,
   Star,
   Shield,
+  UserCog,
+  Calculator,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useMemo } from 'react'
 import { useApp } from '@/store/AppContext'
 
-type Role = 'colaborador' | 'supervisor' | 'gerente'
+type Role = 'colaborador' | 'supervisor' | 'gerente' | 'rh'
 
 interface NavItem {
   label: string
@@ -52,6 +54,12 @@ const mainByRole: Record<Role, NavItem[]> = {
     { label: 'Escala', icon: CalendarDays, to: '/escala', roles: ['gerente'] },
     { label: 'Ponto', icon: Fingerprint, to: '/ponto', roles: ['gerente'] },
     { label: 'Produtiv.', icon: Zap, to: '/produtividade', roles: ['gerente'] },
+  ],
+  rh: [
+    { label: 'Inicio', icon: Home, to: '/', roles: ['rh'] },
+    { label: 'Painel RH', icon: UserCog, to: '/rh', roles: ['rh'] },
+    { label: 'Colab.', icon: Users, to: '/colaboradores', roles: ['rh'] },
+    { label: 'Dimension.', icon: Calculator, to: '/dimensionamento', roles: ['rh'] },
   ],
 }
 
@@ -91,6 +99,16 @@ const moreByRole: Record<Role, NavItem[]> = {
     { label: 'Minha Area', icon: User, to: '/minha-area', roles: ['gerente'] },
     { label: 'Check-in', icon: MapPin, to: '/checkin', roles: ['gerente'] },
     { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['gerente'] },
+  ],
+  rh: [
+    { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['rh'] },
+    { label: 'Banco Horas', icon: Wallet, to: '/banco-horas', roles: ['rh'] },
+    { label: 'Hist. Presenca', icon: History, to: '/historico-presenca', roles: ['rh'] },
+    { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['rh'] },
+    { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['rh'] },
+    { label: 'Dimension.', icon: Calculator, to: '/dimensionamento', roles: ['rh'] },
+    { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['rh'] },
+    { label: 'Configuracoes', icon: Settings, to: '/configuracoes', roles: ['rh'] },
   ],
 }
 

@@ -50,7 +50,7 @@ export interface AppState {
   theme: 'dark' | 'light'
   onboardingDone: boolean
   currentWeek: string // ISO date of Monday
-  currentUser: { role: 'colaborador' | 'supervisor' | 'gerente'; name: string }
+  currentUser: { role: 'colaborador' | 'supervisor' | 'gerente' | 'rh'; name: string }
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────

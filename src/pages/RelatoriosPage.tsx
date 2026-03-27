@@ -11,7 +11,7 @@ interface ReportConfig {
   label: string
   description: string
   icon: typeof FileDown
-  roles: ('colaborador' | 'supervisor' | 'gerente')[]
+  roles: ('colaborador' | 'supervisor' | 'gerente' | 'rh')[]
 }
 
 const REPORTS: ReportConfig[] = [

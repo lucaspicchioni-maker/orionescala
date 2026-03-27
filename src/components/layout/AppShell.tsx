@@ -21,6 +21,8 @@ const pageTitles: Record<string, string> = {
   '/banco-horas': 'Banco de Horas',
   '/feedback': 'Avaliacao',
   '/regras': 'Regras de Ouro',
+  '/dimensionamento': 'Dimensionamento',
+  '/rh': 'Painel RH',
 }
 
 function formatDatePt(): string {

@@ -21,6 +21,8 @@ import {
   Wallet,
   Star,
   Shield,
+  UserCog,
+  Calculator,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
@@ -29,25 +31,27 @@ interface NavItem {
   label: string
   icon: ElementType
   to: string
-  roles: ('colaborador' | 'supervisor' | 'gerente')[]
+  roles: ('colaborador' | 'supervisor' | 'gerente' | 'rh')[]
 }
 
 const navItems: NavItem[] = [
-  { label: 'Inicio', icon: Home, to: '/', roles: ['colaborador', 'supervisor', 'gerente'] },
+  { label: 'Inicio', icon: Home, to: '/', roles: ['colaborador', 'supervisor', 'gerente', 'rh'] },
   { label: 'Calculo DPH', icon: BarChart3, to: '/dph', roles: ['gerente'] },
   { label: 'Escala', icon: CalendarDays, to: '/escala', roles: ['supervisor', 'gerente'] },
-  { label: 'Ponto', icon: Fingerprint, to: '/ponto', roles: ['supervisor', 'gerente'] },
+  { label: 'Ponto', icon: Fingerprint, to: '/ponto', roles: ['supervisor', 'gerente', 'rh'] },
   { label: 'Produtividade', icon: Zap, to: '/produtividade', roles: ['colaborador', 'supervisor', 'gerente'] },
   { label: 'Saldo de Horas', icon: Clock, to: '/saldo', roles: ['supervisor', 'gerente'] },
-  { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['supervisor', 'gerente'] },
-  { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['supervisor', 'gerente'] },
+  { label: 'Colaboradores', icon: Users, to: '/colaboradores', roles: ['supervisor', 'gerente', 'rh'] },
+  { label: 'KPIs', icon: Activity, to: '/kpis', roles: ['supervisor', 'gerente', 'rh'] },
   { label: 'Ranking', icon: Trophy, to: '/ranking', roles: ['supervisor', 'gerente'] },
-  { label: 'Banco de Horas', icon: Wallet, to: '/banco-horas', roles: ['supervisor', 'gerente'] },
-  { label: 'Historico Presenca', icon: History, to: '/historico-presenca', roles: ['supervisor', 'gerente'] },
+  { label: 'Banco de Horas', icon: Wallet, to: '/banco-horas', roles: ['supervisor', 'gerente', 'rh'] },
+  { label: 'Historico Presenca', icon: History, to: '/historico-presenca', roles: ['supervisor', 'gerente', 'rh'] },
   { label: 'Troca de Turno', icon: ArrowLeftRight, to: '/troca-turno', roles: ['colaborador', 'supervisor', 'gerente'] },
-  { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['supervisor', 'gerente'] },
+  { label: 'Avaliacao', icon: Star, to: '/feedback', roles: ['supervisor', 'gerente', 'rh'] },
   { label: 'Regras de Ouro', icon: Shield, to: '/regras', roles: ['supervisor', 'gerente'] },
-  { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['supervisor', 'gerente'] },
+  { label: 'Dimensionamento', icon: Calculator, to: '/dimensionamento', roles: ['gerente', 'rh'] },
+  { label: 'Painel RH', icon: UserCog, to: '/rh', roles: ['rh', 'gerente'] },
+  { label: 'Relatorios', icon: FileDown, to: '/relatorios', roles: ['supervisor', 'gerente', 'rh'] },
   { label: 'Minha Area', icon: User, to: '/minha-area', roles: ['colaborador'] },
 ]
 

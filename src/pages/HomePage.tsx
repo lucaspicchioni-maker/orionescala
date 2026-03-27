@@ -14,6 +14,10 @@ import {
   TrendingUp,
   LogOut,
   ChevronRight,
+  UserCog,
+  Calculator,
+  Star,
+  FileDown,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -360,6 +364,34 @@ export default function HomePage() {
             <NavCard to="/produtividade" icon={Zap} label="Produtividade" description="Erros, SLA, metas e premios" />
             <NavCard to="/saldo" icon={DollarSign} label="Saldo de Horas" description="Resumo para pagamento" />
             <NavCard to="/kpis" icon={Target} label="KPIs" description="Indicadores da operacao" />
+          </div>
+        </>
+      )}
+
+      {/* ── RH VIEW ── */}
+      {currentUser.role === 'rh' && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="text-center">
+              <Users className="mx-auto h-6 w-6 text-primary" />
+              <div className="mt-1 text-2xl font-bold text-foreground">{state.employees.filter(e => e.status === 'ativo').length}</div>
+              <div className="text-[11px] text-muted-foreground">Ativos</div>
+            </Card>
+            <Card className="text-center">
+              <AlertTriangle className="mx-auto h-6 w-6 text-warning" />
+              <div className="mt-1 text-2xl font-bold text-warning">{state.employees.filter(e => e.status === 'ferias').length}</div>
+              <div className="text-[11px] text-muted-foreground">Ferias</div>
+            </Card>
+          </div>
+
+          <div className="space-y-2">
+            <NavCard to="/rh" icon={UserCog} label="Painel RH" description="Visao completa de indicadores de pessoas" />
+            <NavCard to="/dimensionamento" icon={Calculator} label="Dimensionamento" description="Calcular necessidade de contratacao" />
+            <NavCard to="/colaboradores" icon={Users} label="Colaboradores" description="Cadastro e gestao do quadro" />
+            <NavCard to="/feedback" icon={Star} label="Avaliacoes" description="Avaliacoes semanais dos colaboradores" />
+            <NavCard to="/historico-presenca" icon={Clock} label="Historico Presenca" description="Timeline de presenca e faltas" />
+            <NavCard to="/banco-horas" icon={DollarSign} label="Banco de Horas" description="Saldo de extras e deficit" />
+            <NavCard to="/relatorios" icon={FileDown} label="Relatorios" description="Exportar dados em CSV" />
           </div>
         </>
       )}

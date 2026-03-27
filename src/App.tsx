@@ -21,6 +21,8 @@ import TrocaTurnoPage from '@/pages/TrocaTurnoPage'
 import BancoHorasPage from '@/pages/BancoHorasPage'
 import FeedbackPage from '@/pages/FeedbackPage'
 import RegrasDeOuroPage from '@/pages/RegrasDeOuroPage'
+import DimensionamentoPage from '@/pages/DimensionamentoPage'
+import RHDashboardPage from '@/pages/RHDashboardPage'
 
 function AppRoutes() {
   const { state } = useApp()
@@ -57,6 +59,8 @@ function AppRoutes() {
           <Route path="/banco-horas" element={<BancoHorasPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/regras" element={<RegrasDeOuroPage />} />
+          <Route path="/dimensionamento" element={<DimensionamentoPage />} />
+          <Route path="/rh" element={<RHDashboardPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

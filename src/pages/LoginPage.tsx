@@ -26,9 +26,11 @@ export default function LoginPage() {
 
     const role = emp.role === 'gerente'
       ? 'gerente'
-      : emp.role === 'supervisor' || emp.role === 'lider'
-        ? 'supervisor'
-        : 'colaborador'
+      : emp.role === 'rh'
+        ? 'rh'
+        : emp.role === 'supervisor' || emp.role === 'lider'
+          ? 'supervisor'
+          : 'colaborador'
 
     // Simple pin: last 4 digits of phone, or "0000" if no phone
     const expectedPin = emp.phone.replace(/\D/g, '').slice(-4) || '0000'

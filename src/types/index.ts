@@ -3,8 +3,10 @@ export interface Employee {
   name: string
   nickname: string
   phone: string
-  role: 'auxiliar' | 'lider' | 'supervisor' | 'gerente'
+  role: 'auxiliar' | 'lider' | 'supervisor' | 'gerente' | 'rh'
   status: 'ativo' | 'inativo' | 'ferias'
+  admissionDate?: string // YYYY-MM-DD
+  contractType?: 'clt' | 'pj' | 'estagiario' | 'temporario'
   hourlyRate: number
   monthlyCost: number
 }

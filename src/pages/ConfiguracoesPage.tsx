@@ -138,12 +138,13 @@ export default function ConfiguracoesPage() {
             >
               <option value="colaborador">Colaborador</option>
               <option value="supervisor">Supervisor / Lider</option>
+              <option value="rh">RH</option>
               <option value="gerente">Gerente</option>
             </select>
           </div>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Isso define o que voce ve no sistema. Colaborador ve apenas sua area; Lider ve escala, ponto e produtividade; Gerente ve tudo.
+          Isso define o que voce ve no sistema. Colaborador ve apenas sua area; Lider ve escala, ponto e produtividade; RH ve colaboradores, dimensionamento e avaliacoes; Gerente ve tudo.
         </p>
         <button
           onClick={saveUser}

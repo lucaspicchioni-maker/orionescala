@@ -6,7 +6,7 @@ interface Step {
   icon: typeof Calendar
   title: string
   description: string
-  roles: ('colaborador' | 'supervisor' | 'gerente')[]
+  roles: ('colaborador' | 'supervisor' | 'gerente' | 'rh')[]
 }
 
 const STEPS: Step[] = [
