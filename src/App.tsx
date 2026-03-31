@@ -1,10 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import type { UserRole } from '@/types'
 import { AppShell } from '@/components/layout/AppShell'
 import { AppProvider, useApp } from '@/store/AppContext'
 import { Onboarding } from '@/components/Onboarding'
-import { ToastProvider } from '@/components/ui/Toast'
+import { ToastProvider, useToast } from '@/components/ui/Toast'
 import DPHPage from '@/pages/DPHPage'
 import EscalaPage from '@/pages/EscalaPage'
 import SaldoPage from '@/pages/SaldoPage'
@@ -69,6 +70,33 @@ const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/banco-horas': ['admin', 'gerente', 'supervisor', 'rh'],
 }
 
+// Watches for urgent announcements after API data loads and shows toast notifications
+function UrgentAnnouncementWatcher() {
+  const { state } = useApp()
+  const { toast } = useToast()
+  const shownRef = useRef<Set<string>>(new Set())
+  const prevApiReady = useRef(false)
+
+  useEffect(() => {
+    // Only trigger when apiReady transitions from false → true
+    if (!state.apiReady || prevApiReady.current) return
+    prevApiReady.current = true
+
+    const loggedEmployeeId = localStorage.getItem('orion_logged_employee') || ''
+    const urgent = state.announcements.filter(
+      (a) => a.priority === 'urgent' && !a.readBy.includes(loggedEmployeeId),
+    )
+    urgent.forEach((a) => {
+      if (!shownRef.current.has(a.id)) {
+        shownRef.current.add(a.id)
+        toast('warning', `Aviso urgente: ${a.title}`)
+      }
+    })
+  }, [state.apiReady, state.announcements, toast])
+
+  return null
+}
+
 function RoleGuard({ path, children }: { path: string; children: ReactNode }) {
   const { state } = useApp()
   const role = state.currentUser.role
@@ -94,6 +122,7 @@ function AppRoutes() {
 
   return (
     <>
+      <UrgentAnnouncementWatcher />
       <Onboarding />
       <Routes>
         {/* Public page — no AppShell */}

@@ -165,10 +165,18 @@ export default function SaldoPage() {
 
   const hasScheduleData = payrollData.some((e) => e.scheduledHours > 0)
 
+  const currentWeekStart = useMemo(() => {
+    const schedule = state.schedules
+      .filter((s) => s.published)
+      .sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0]
+      ?? state.schedules[0]
+    return schedule?.weekStart ?? new Date().toISOString().split('T')[0]
+  }, [state.schedules])
+
   function exportCSV() {
-    const header = 'Nome,Cargo,Valor/Hora,Horas Escaladas,Horas Trabalhadas,Assiduidade,Bruto,INSS,Liquido,FGTS,Custo Empregador\n'
+    const header = 'Nome,Horas Trabalhadas,Salario Base,DSR,INSS,IRRF,FGTS,Liquido\n'
     const rows = sortedPayroll.map((e) =>
-      `${e.name},${ROLE_LABELS[e.role] ?? e.role},${e.hourlyRate.toFixed(2)},${e.scheduledHours},${e.workedHours},${Math.round(e.attendance * 100)}%,${e.totalBruto.toFixed(2)},${e.inssEmpregado.toFixed(2)},${e.liquidoColaborador.toFixed(2)},${e.fgts.toFixed(2)},${e.custoEmpregador.toFixed(2)}`
+      `${e.name},${e.workedHours},${e.totalBruto.toFixed(2)},0.00,${e.inssEmpregado.toFixed(2)},0.00,${e.fgts.toFixed(2)},${e.liquidoColaborador.toFixed(2)}`
     ).join('\n')
     const csv = header + rows
 
@@ -176,7 +184,7 @@ export default function SaldoPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `saldo-horas-clt-${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `folha-${currentWeekStart}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }

@@ -10,6 +10,19 @@ import {
   Zap,
   Target,
 } from 'lucide-react'
+import {
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppContext'
@@ -86,6 +99,57 @@ export default function HomePage() {
     }
   }, [state.productivityRecords, weekStart])
 
+  // ── Chart data ───────────────────────────────────────────────────────────
+
+  const DAY_KEYS = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'] as const
+  const DAY_SHORT: Record<string, string> = {
+    segunda: 'Seg', terca: 'Ter', quarta: 'Qua',
+    quinta: 'Qui', sexta: 'Sex', sabado: 'Sab', domingo: 'Dom',
+  }
+
+  // Weekly attendance chart data
+  const weeklyAttendanceData = useMemo(() => {
+    const currentSchedule = state.schedules.find((s) => s.weekStart === weekStart)
+    if (!currentSchedule) return []
+    return currentSchedule.days.map((day) => {
+      const scheduled = new Set<string>()
+      day.slots.forEach((sl) => sl.assignments.forEach((a) => scheduled.add(a.employeeId)))
+      const total = scheduled.size
+      const checkedIn = state.pontoRecords.filter(
+        (p) => p.date === day.date && (p.status === 'on_time' || p.status === 'late'),
+      ).length
+      const presence = total > 0 ? Math.round((checkedIn / total) * 100) : 0
+      return { day: DAY_SHORT[day.dayOfWeek] ?? day.dayOfWeek, presence, total }
+    })
+  }, [state.schedules, state.pontoRecords, weekStart])
+
+  // Daily cost chart data
+  const dailyCostData = useMemo(() => {
+    const currentSchedule = state.schedules.find((s) => s.weekStart === weekStart)
+    if (!currentSchedule) return []
+    return currentSchedule.days.map((day) => {
+      let cost = 0
+      day.slots.forEach((sl) => {
+        sl.assignments.forEach((a) => {
+          const emp = state.employees.find((e) => e.id === a.employeeId)
+          if (emp) cost += emp.hourlyRate
+        })
+      })
+      return { day: DAY_SHORT[day.dayOfWeek] ?? day.dayOfWeek, custo: Math.round(cost) }
+    })
+  }, [state.schedules, state.employees, weekStart])
+
+  // Productivity trend — last 4 productivity records (all employees)
+  const productivityTrendData = useMemo(() => {
+    const sorted = [...state.productivityRecords]
+      .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
+      .slice(-4)
+    return sorted.map((r, i) => ({
+      idx: `S${i + 1}`,
+      pedidos: r.totalOrders,
+    }))
+  }, [state.productivityRecords])
+
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
 
@@ -130,24 +194,43 @@ export default function HomePage() {
           )}
 
           {myWeekProd.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              <Card className="text-center !p-3">
-                <p className="text-[10px] text-muted-foreground">Pedidos</p>
-                <p className="text-xl font-bold text-foreground">{myWeekProd.reduce((s, r) => s + r.totalOrders, 0)}</p>
-              </Card>
-              <Card className="text-center !p-3">
-                <p className="text-[10px] text-muted-foreground">Erros</p>
-                <p className={cn('text-xl font-bold', myWeekProd.reduce((s, r) => s + r.totalErrors, 0) === 0 ? 'text-success' : 'text-destructive')}>
-                  {myWeekProd.reduce((s, r) => s + r.totalErrors, 0)}
-                </p>
-              </Card>
-              <Card className="text-center !p-3">
-                <p className="text-[10px] text-muted-foreground">SLA</p>
-                <p className="text-xl font-bold text-foreground">
-                  {(myWeekProd.reduce((s, r) => s + r.slaCompliance, 0) / myWeekProd.length).toFixed(0)}%
-                </p>
-              </Card>
-            </div>
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                <Card className="text-center !p-3">
+                  <p className="text-[10px] text-muted-foreground">Pedidos</p>
+                  <p className="text-xl font-bold text-foreground">{myWeekProd.reduce((s, r) => s + r.totalOrders, 0)}</p>
+                </Card>
+                <Card className="text-center !p-3">
+                  <p className="text-[10px] text-muted-foreground">Erros</p>
+                  <p className={cn('text-xl font-bold', myWeekProd.reduce((s, r) => s + r.totalErrors, 0) === 0 ? 'text-success' : 'text-destructive')}>
+                    {myWeekProd.reduce((s, r) => s + r.totalErrors, 0)}
+                  </p>
+                </Card>
+                <Card className="text-center !p-3">
+                  <p className="text-[10px] text-muted-foreground">SLA</p>
+                  <p className="text-xl font-bold text-foreground">
+                    {(myWeekProd.reduce((s, r) => s + r.slaCompliance, 0) / myWeekProd.length).toFixed(0)}%
+                  </p>
+                </Card>
+              </div>
+              {productivityTrendData.length > 0 && (
+                <Card>
+                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tendencia de Pedidos</h3>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <LineChart data={productivityTrendData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border)/0.4)" />
+                      <XAxis dataKey="idx" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
+                        formatter={(value: number) => [value, 'Pedidos']}
+                      />
+                      <Line type="monotone" dataKey="pedidos" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 4 }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Card>
+              )}
+            </>
           )}
         </>
       )}
@@ -199,6 +282,42 @@ export default function HomePage() {
                   <p className="text-[10px] text-muted-foreground">SLA</p>
                 </div>
               </div>
+            </Card>
+          )}
+
+          {weeklyAttendanceData.length > 0 && (
+            <Card>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Presenca Semanal (%)</h3>
+              <ResponsiveContainer width="100%" height={190}>
+                <BarChart data={weeklyAttendanceData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border)/0.4)" />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
+                    formatter={(value: number) => [`${value}%`, 'Presenca']}
+                  />
+                  <Bar dataKey="presence" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+
+          {productivityTrendData.length > 0 && (
+            <Card>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tendencia de Pedidos (ultimas semanas)</h3>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={productivityTrendData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border)/0.4)" />
+                  <XAxis dataKey="idx" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
+                    formatter={(value: number) => [value, 'Pedidos']}
+                  />
+                  <Line type="monotone" dataKey="pedidos" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
             </Card>
           )}
         </>
@@ -255,6 +374,67 @@ export default function HomePage() {
                 {todayStats.late > 0 && <div><span className="text-lg font-bold text-warning">{todayStats.late}</span><span className="text-xs text-muted-foreground"> atrasados</span></div>}
                 {todayStats.absent > 0 && <div><span className="text-lg font-bold text-destructive">{todayStats.absent}</span><span className="text-xs text-muted-foreground"> faltas</span></div>}
               </div>
+            </Card>
+          )}
+
+          {/* ── Charts ── */}
+          {weeklyAttendanceData.length > 0 && (
+            <Card>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Presenca Semanal (%)</h3>
+              <ResponsiveContainer width="100%" height={190}>
+                <BarChart data={weeklyAttendanceData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border)/0.4)" />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
+                    formatter={(value: number) => [`${value}%`, 'Presenca']}
+                  />
+                  <Bar dataKey="presence" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+
+          {dailyCostData.length > 0 && (
+            <Card>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Custo Operacional por Dia (R$)</h3>
+              <ResponsiveContainer width="100%" height={190}>
+                <AreaChart data={dailyCostData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="costGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border)/0.4)" />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
+                    formatter={(value: number) => [formatCurrency(value), 'Custo']}
+                  />
+                  <Area type="monotone" dataKey="custo" stroke="#22c55e" strokeWidth={2} fill="url(#costGradient)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+
+          {productivityTrendData.length > 0 && (
+            <Card>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tendencia de Pedidos (ultimas semanas)</h3>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={productivityTrendData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border)/0.4)" />
+                  <XAxis dataKey="idx" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
+                    formatter={(value: number) => [value, 'Pedidos']}
+                  />
+                  <Line type="monotone" dataKey="pedidos" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
             </Card>
           )}
         </>

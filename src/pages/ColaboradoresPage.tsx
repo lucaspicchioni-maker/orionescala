@@ -48,20 +48,44 @@ interface EmployeeForm {
   name: string
   nickname: string
   phone: string
+  email: string
+  cpf: string
+  rg: string
+  ctps: string
+  pis: string
   role: Employee['role']
   status: Employee['status']
+  admissionDate: string
+  terminationDate: string
+  contractType: string
   hourlyRate: string
   monthlyCost: string
+  address: string
+  bankAccount: string
+  emergencyContact: string
+  notes: string
 }
 
 const emptyForm: EmployeeForm = {
   name: '',
   nickname: '',
   phone: '',
+  email: '',
+  cpf: '',
+  rg: '',
+  ctps: '',
+  pis: '',
   role: 'auxiliar',
   status: 'ativo',
+  admissionDate: '',
+  terminationDate: '',
+  contractType: '',
   hourlyRate: '',
   monthlyCost: '',
+  address: '',
+  bankAccount: '',
+  emergencyContact: '',
+  notes: '',
 }
 
 function formFromEmployee(e: Employee): EmployeeForm {
@@ -69,10 +93,22 @@ function formFromEmployee(e: Employee): EmployeeForm {
     name: e.name,
     nickname: e.nickname,
     phone: e.phone,
+    email: e.email ?? '',
+    cpf: e.cpf ?? '',
+    rg: e.rg ?? '',
+    ctps: e.ctps ?? '',
+    pis: e.pis ?? '',
     role: e.role,
     status: e.status,
+    admissionDate: e.admissionDate ?? '',
+    terminationDate: e.terminationDate ?? '',
+    contractType: e.contractType ?? '',
     hourlyRate: String(e.hourlyRate),
     monthlyCost: String(e.monthlyCost),
+    address: e.address ?? '',
+    bankAccount: e.bankAccount ?? '',
+    emergencyContact: e.emergencyContact ?? '',
+    notes: e.notes ?? '',
   }
 }
 
@@ -89,6 +125,7 @@ export default function ColaboradoresPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<EmployeeForm>(emptyForm)
+  const [modalTab, setModalTab] = useState<'pessoal' | 'contrato' | 'outros'>('pessoal')
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null)
@@ -125,12 +162,14 @@ export default function ColaboradoresPage() {
   function openAdd() {
     setEditingId(null)
     setForm(emptyForm)
+    setModalTab('pessoal')
     setModalOpen(true)
   }
 
   function openEdit(e: Employee) {
     setEditingId(e.id)
     setForm(formFromEmployee(e))
+    setModalTab('pessoal')
     setModalOpen(true)
   }
 
@@ -139,6 +178,21 @@ export default function ColaboradoresPage() {
     const monthlyCost = parseFloat(form.monthlyCost) || 0
 
     if (!form.name.trim()) return
+
+    const extraFields = {
+      email: form.email.trim() || undefined,
+      cpf: form.cpf.trim() || undefined,
+      rg: form.rg.trim() || undefined,
+      ctps: form.ctps.trim() || undefined,
+      pis: form.pis.trim() || undefined,
+      admissionDate: form.admissionDate || undefined,
+      terminationDate: form.terminationDate || undefined,
+      contractType: (form.contractType as Employee['contractType']) || undefined,
+      address: form.address.trim() || undefined,
+      bankAccount: form.bankAccount.trim() || undefined,
+      emergencyContact: form.emergencyContact.trim() || undefined,
+      notes: form.notes.trim() || undefined,
+    }
 
     if (editingId) {
       dispatch({
@@ -152,6 +206,7 @@ export default function ColaboradoresPage() {
           status: form.status,
           hourlyRate,
           monthlyCost,
+          ...extraFields,
         },
       })
     } else {
@@ -174,6 +229,7 @@ export default function ColaboradoresPage() {
           status: form.status,
           hourlyRate,
           monthlyCost,
+          ...extraFields,
         },
       })
     }
@@ -353,116 +409,281 @@ export default function ColaboradoresPage() {
         size="lg"
       >
         <div className="space-y-4">
-          {/* Nome */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-muted-foreground">
-              Nome completo
-            </label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => updateField('name', e.target.value)}
-              className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
-              placeholder="Nome do colaborador"
-            />
-          </div>
-
-          {/* Apelido + Telefone */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
-                Apelido
-              </label>
-              <input
-                type="text"
-                value={form.nickname}
-                onChange={(e) => updateField('nickname', e.target.value)}
-                className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="Apelido"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
-                Telefone / WhatsApp
-              </label>
-              <input
-                type="text"
-                value={form.phone}
-                onChange={(e) => updateField('phone', e.target.value)}
-                className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="+55 31 9 0000-0000"
-              />
-            </div>
-          </div>
-
-          {/* Cargo + Status */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
-                Cargo
-              </label>
-              <select
-                value={form.role}
-                onChange={(e) =>
-                  updateField('role', e.target.value as Employee['role'])
-                }
-                className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          {/* Tab navigation */}
+          <div className="flex gap-1 rounded-lg bg-muted p-1">
+            {([
+              { key: 'pessoal', label: 'Dados Pessoais' },
+              { key: 'contrato', label: 'Contrato' },
+              { key: 'outros', label: 'Endereco / Outros' },
+            ] as const).map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setModalTab(tab.key)}
+                className={cn(
+                  'flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors',
+                  modalTab === tab.key
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
               >
-                <option value="auxiliar">Auxiliar</option>
-                <option value="lider">Lider</option>
-                <option value="supervisor">Supervisor</option>
-                <option value="gerente">Gerente</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
-                Status
-              </label>
-              <select
-                value={form.status}
-                onChange={(e) =>
-                  updateField('status', e.target.value as Employee['status'])
-                }
-                className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="ativo">Ativo</option>
-                <option value="inativo">Inativo</option>
-                <option value="ferias">Ferias</option>
-              </select>
-            </div>
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {/* Valor/Hora + Custo Mensal */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
-                Valor/Hora (R$)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.hourlyRate}
-                onChange={(e) => updateField('hourlyRate', e.target.value)}
-                className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="0.00"
-              />
+          {/* ── Tab: Dados Pessoais ────────────────────────────────── */}
+          {modalTab === 'pessoal' && (
+            <div className="space-y-4">
+              {/* Nome */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Nome completo</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => updateField('name', e.target.value)}
+                  className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Nome do colaborador"
+                />
+              </div>
+
+              {/* Apelido + Telefone */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Apelido</label>
+                  <input
+                    type="text"
+                    value={form.nickname}
+                    onChange={(e) => updateField('nickname', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Apelido"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Telefone / WhatsApp</label>
+                  <input
+                    type="text"
+                    value={form.phone}
+                    onChange={(e) => updateField('phone', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="+55 31 9 0000-0000"
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">E-mail</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => updateField('email', e.target.value)}
+                  className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+
+              {/* CPF + RG */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">CPF</label>
+                  <input
+                    type="text"
+                    value={form.cpf}
+                    onChange={(e) => updateField('cpf', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="000.000.000-00"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">RG</label>
+                  <input
+                    type="text"
+                    value={form.rg}
+                    onChange={(e) => updateField('rg', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="0000000"
+                  />
+                </div>
+              </div>
+
+              {/* CTPS + PIS */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">CTPS</label>
+                  <input
+                    type="text"
+                    value={form.ctps}
+                    onChange={(e) => updateField('ctps', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Numero / Serie"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">PIS</label>
+                  <input
+                    type="text"
+                    value={form.pis}
+                    onChange={(e) => updateField('pis', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="000.00000.00-0"
+                  />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">
-                Custo Mensal (R$)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.monthlyCost}
-                onChange={(e) => updateField('monthlyCost', e.target.value)}
-                className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="0.00"
-              />
+          )}
+
+          {/* ── Tab: Contrato ─────────────────────────────────────── */}
+          {modalTab === 'contrato' && (
+            <div className="space-y-4">
+              {/* Cargo + Status */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Cargo</label>
+                  <select
+                    value={form.role}
+                    onChange={(e) => updateField('role', e.target.value as Employee['role'])}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="auxiliar">Auxiliar</option>
+                    <option value="lider">Lider</option>
+                    <option value="supervisor">Supervisor</option>
+                    <option value="gerente">Gerente</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Status</label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => updateField('status', e.target.value as Employee['status'])}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="ativo">Ativo</option>
+                    <option value="inativo">Inativo</option>
+                    <option value="ferias">Ferias</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Tipo Contrato */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Tipo de Contrato</label>
+                <select
+                  value={form.contractType}
+                  onChange={(e) => updateField('contractType', e.target.value)}
+                  className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Selecione...</option>
+                  <option value="clt">CLT</option>
+                  <option value="pj">PJ</option>
+                  <option value="estagiario">Estagiario</option>
+                  <option value="temporario">Temporario</option>
+                </select>
+              </div>
+
+              {/* Data Admissao + Data Demissao */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Data de Admissao</label>
+                  <input
+                    type="date"
+                    value={form.admissionDate}
+                    onChange={(e) => updateField('admissionDate', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Data de Demissao</label>
+                  <input
+                    type="date"
+                    value={form.terminationDate}
+                    onChange={(e) => updateField('terminationDate', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Valor/Hora + Custo Mensal */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Valor/Hora (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.hourlyRate}
+                    onChange={(e) => updateField('hourlyRate', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Custo Mensal (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.monthlyCost}
+                    onChange={(e) => updateField('monthlyCost', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* ── Tab: Endereco / Outros ─────────────────────────────── */}
+          {modalTab === 'outros' && (
+            <div className="space-y-4">
+              {/* Endereco */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Endereco</label>
+                <input
+                  type="text"
+                  value={form.address}
+                  onChange={(e) => updateField('address', e.target.value)}
+                  className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Rua, numero, bairro, cidade"
+                />
+              </div>
+
+              {/* Dados Bancarios */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Dados Bancarios</label>
+                <input
+                  type="text"
+                  value={form.bankAccount}
+                  onChange={(e) => updateField('bankAccount', e.target.value)}
+                  className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Banco / Agencia / Conta / PIX"
+                />
+              </div>
+
+              {/* Contato de Emergencia */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Contato de Emergencia</label>
+                <input
+                  type="text"
+                  value={form.emergencyContact}
+                  onChange={(e) => updateField('emergencyContact', e.target.value)}
+                  className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Nome - Telefone - Parentesco"
+                />
+              </div>
+
+              {/* Observacoes */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Observacoes</label>
+                <textarea
+                  value={form.notes}
+                  onChange={(e) => updateField('notes', e.target.value)}
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                  placeholder="Informacoes adicionais..."
+                />
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">

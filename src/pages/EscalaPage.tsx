@@ -20,6 +20,7 @@ import { getScheduleSuggestions } from '@/services/aiService'
 import type { ScheduleSuggestResult } from '@/services/aiService'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { useToast } from '@/components/ui/Toast'
 import { week1Data } from '@/data/dph'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
@@ -177,6 +178,7 @@ function Modal({
 
 export default function EscalaPage() {
   const { state, dispatch } = useApp()
+  const { toast } = useToast()
   const [weekOffset, setWeekOffset] = useState(0)
   const weekStart = useMemo(() => getWeekStart(weekOffset), [weekOffset])
 
@@ -374,9 +376,18 @@ export default function EscalaPage() {
       dispatch({ type: 'ADD_NOTIFICATIONS', payload: notifications })
     }
 
+    // Count unique convocations (unique employees assigned)
+    const convocated = new Set<string>()
+    updated.days.forEach((day) =>
+      day.slots.forEach((slot) =>
+        slot.assignments.forEach((a) => convocated.add(a.employeeId)),
+      ),
+    )
+    toast('success', `Escala publicada com sucesso! ${convocated.size} colaborador${convocated.size === 1 ? '' : 'es'} convocado${convocated.size === 1 ? '' : 's'}.`)
+
     setShowPublishModal(false)
     setShowNotifyPanel(true)
-  }, [schedule, persistSchedule, employees, dispatch])
+  }, [schedule, persistSchedule, employees, dispatch, toast])
 
   const buildWhatsAppLink = useCallback(
     (emp: Employee) => {

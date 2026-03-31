@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useApp } from '@/store/AppContext'
-import { Clock, TrendingUp, TrendingDown, Minus, Plus, RefreshCw } from 'lucide-react'
+import { Clock, TrendingUp, TrendingDown, Minus, Plus, RefreshCw, Download } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { BancoHorasEntry } from '@/types'
 
@@ -154,6 +154,27 @@ export default function BancoHorasPage() {
 
   const totalTeamBalance = Object.values(employeeBalances).reduce((s, b) => s + b.balance, 0)
 
+  function exportResumoCSV() {
+    const header = 'Nome,Saldo Horas\n'
+    const rows = visibleEmployees
+      .map(emp => {
+        const bal = employeeBalances[emp.id]
+        if (!bal) return null
+        return `${emp.name},${formatMinutes(bal.balance)}`
+      })
+      .filter(Boolean)
+      .join('\n')
+    const csv = header + rows
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `banco-horas-${state.currentWeek}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-4 p-3 sm:space-y-6 sm:p-4 lg:p-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -277,6 +298,55 @@ export default function BancoHorasPage() {
           </div>
         </div>
       )}
+
+      {/* Resumo Mensal */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Resumo Mensal — Saldo por Colaborador</h3>
+          <button
+            onClick={exportResumoCSV}
+            className="flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Exportar CSV
+          </button>
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <th className="px-4 py-3">Colaborador</th>
+                <th className="px-4 py-3 text-right">Saldo de Horas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleEmployees.map((emp, idx) => {
+                const bal = employeeBalances[emp.id]
+                if (!bal) return null
+                const isPositive = bal.balance >= 0
+                return (
+                  <tr
+                    key={emp.id}
+                    className={`border-b border-border/50 ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}
+                  >
+                    <td className="px-4 py-3 font-medium text-foreground">{emp.name}</td>
+                    <td className={`px-4 py-3 text-right font-bold ${isPositive ? 'text-success' : 'text-destructive'}`}>
+                      {formatMinutes(bal.balance)}
+                    </td>
+                  </tr>
+                )
+              })}
+              {visibleEmployees.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="px-4 py-6 text-center text-muted-foreground text-xs">
+                    Nenhum colaborador ativo.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

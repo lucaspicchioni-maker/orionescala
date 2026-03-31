@@ -11,6 +11,17 @@ export interface Employee {
   contractType?: 'clt' | 'pj' | 'estagiario' | 'temporario'
   hourlyRate: number
   monthlyCost: number
+  // Extended fields
+  email?: string
+  terminationDate?: string
+  ctps?: string
+  rg?: string
+  cpf?: string
+  pis?: string
+  bankAccount?: string
+  address?: string
+  emergencyContact?: string
+  notes?: string
 }
 
 export interface HourlyDemand {

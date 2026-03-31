@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { FileText, Printer, DollarSign, Calendar } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { useApp } from '@/store/AppContext'
@@ -10,6 +10,31 @@ export default function ReciboPagamentoPage() {
   const { state } = useApp()
   const [selectedEmployee, setSelectedEmployee] = useState('')
   const [weekStart, setWeekStart] = useState(state.currentWeek)
+
+  // Inject robust print styles on mount
+  useEffect(() => {
+    const styleId = 'print-styles'
+    if (document.getElementById(styleId)) return
+    const style = document.createElement('style')
+    style.id = styleId
+    style.textContent = `
+      @media print {
+        body { background: white !important; color: black !important; }
+        nav, aside, header, [data-sidebar], [class*="sidebar"], [class*="Sidebar"],
+        [class*="nav"], [class*="Nav"], .print\\:hidden { display: none !important; }
+        #recibo-print, #recibo-print * { visibility: visible; }
+        #recibo-print { position: static !important; }
+        .hidden.print\\:block { display: block !important; }
+        .card, [class*="Card"] { border: 1px solid #ccc !important; box-shadow: none !important; background: white !important; }
+        * { color-adjust: exact; -webkit-print-color-adjust: exact; }
+      }
+    `
+    document.head.appendChild(style)
+    return () => {
+      const el = document.getElementById(styleId)
+      if (el) el.remove()
+    }
+  }, [])
 
   const activeEmployees = useMemo(
     () => state.employees.filter(e => e.status === 'ativo' && e.hourlyRate > 0),
@@ -304,15 +329,6 @@ export default function ReciboPagamentoPage() {
         </div>
       )}
 
-      {/* Print styles */}
-      <style>{`
-        @media print {
-          body { background: white !important; color: black !important; }
-          .print\\:hidden { display: none !important; }
-          .hidden.print\\:block { display: block !important; }
-          nav, aside, header, .print\\:hidden { display: none !important; }
-        }
-      `}</style>
     </div>
   )
 }
