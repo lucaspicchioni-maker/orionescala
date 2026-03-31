@@ -21,8 +21,11 @@
     "better-sqlite3": "^12.8.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
     "date-fns": "^4.1.0",
     "express": "^4.22.1",
+    "express-rate-limit": "^8.3.2",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.7.0",
     "react": "^19.2.4",
@@ -46,6 +49,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
-    "typescript-eslint": "^8.57.0"
+    "typescript-eslint": "^8.57.0",
+    "vite-plugin-pwa": "^1.2.0"
   }
 }
