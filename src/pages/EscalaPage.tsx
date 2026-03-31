@@ -12,7 +12,12 @@ import {
   ChevronRight,
   Calendar,
   MessageCircle,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
+import { getScheduleSuggestions } from '@/services/aiService'
+import type { ScheduleSuggestResult } from '@/services/aiService'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { week1Data } from '@/data/dph'
@@ -200,6 +205,24 @@ export default function EscalaPage() {
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showNotifyPanel, setShowNotifyPanel] = useState(false)
   const [shiftWarning, setShiftWarning] = useState<string | null>(null)
+  const [aiSuggestions, setAiSuggestions] = useState<ScheduleSuggestResult | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiOpen, setAiOpen] = useState(false)
+
+  async function analyzeWithAI() {
+    setAiLoading(true)
+    setAiError(null)
+    setAiOpen(true)
+    try {
+      const result = await getScheduleSuggestions({ schedule, employees: activeEmployees, weekStart })
+      setAiSuggestions(result)
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Erro ao consultar IA')
+    } finally {
+      setAiLoading(false)
+    }
+  }
 
   const employees = state.employees
   const activeEmployees = useMemo(
@@ -428,6 +451,15 @@ export default function EscalaPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={aiOpen && aiSuggestions ? () => setAiOpen(v => !v) : analyzeWithAI}
+            disabled={aiLoading}
+            className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {aiLoading ? 'Analisando...' : 'IA'}
+            {aiOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
           <Badge variant={statusVariant as 'default' | 'success' | 'warning'} size="md">
             {statusLabel}
           </Badge>
@@ -471,6 +503,42 @@ export default function EscalaPage() {
           <ChevronRight className="h-5 w-5" />
         </button>
       </Card>
+
+      {/* ─── AI Suggestions panel ──────────────────────────────── */}
+      {aiOpen && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 space-y-2.5">
+          {aiLoading && <p className="text-xs text-muted-foreground animate-pulse">Claude está analisando a escala...</p>}
+          {aiError && <p className="text-xs text-destructive">{aiError}</p>}
+          {aiSuggestions && (
+            <>
+              <p className="text-xs text-foreground">{aiSuggestions.analysis}</p>
+              {aiSuggestions.problems.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-destructive">Problemas</p>
+                  {aiSuggestions.problems.map((p, i) => (
+                    <div key={i} className="rounded-md bg-destructive/10 px-3 py-1.5 text-xs text-destructive">{p}</div>
+                  ))}
+                </div>
+              )}
+              {aiSuggestions.suggestions.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">Sugestões</p>
+                  {aiSuggestions.suggestions.map((s, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs text-foreground">
+                      <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />{s}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {aiSuggestions.priority_slots.length > 0 && (
+                <p className="text-xs text-warning">
+                  ⚠️ Slots prioritários: {aiSuggestions.priority_slots.join(', ')}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* ─── Day tabs ───────────────────────────────────────────── */}
       <div className="flex gap-1 overflow-x-auto rounded-lg bg-card p-1">

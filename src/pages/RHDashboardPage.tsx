@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '@/store/AppContext'
 import {
@@ -13,11 +13,20 @@ import {
   Calendar,
   Briefcase,
   Activity,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
+import { getRhInsights } from '@/services/aiService'
+import type { RhInsightsResult } from '@/services/aiService'
 
 export default function RHDashboardPage() {
   const { state } = useApp()
   const navigate = useNavigate()
+  const [aiInsights, setAiInsights] = useState<RhInsightsResult | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiOpen, setAiOpen] = useState(false)
 
   const activeEmployees = state.employees.filter(e => e.status === 'ativo')
   const onVacation = state.employees.filter(e => e.status === 'ferias')
@@ -90,6 +99,25 @@ export default function RHDashboardPage() {
     }
     return unfilled
   }, [state.schedules, state.currentWeek])
+
+  async function analyzeWithAI() {
+    setAiLoading(true)
+    setAiError(null)
+    setAiOpen(true)
+    try {
+      const result = await getRhInsights({
+        employees: { total: activeEmployees.length, vacation: onVacation.length, inactive: state.employees.filter(e => e.status === 'inativo').length },
+        pontoStats: { absences: pontoStats.absences, lates: pontoStats.lates, totalWorked: pontoStats.totalWorked },
+        topAbsentees: pontoStats.topAbsentees,
+        employeeNames: Object.fromEntries(state.employees.map(e => [e.id, e.nickname || e.name])),
+      })
+      setAiInsights(result)
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Erro ao consultar IA')
+    } finally {
+      setAiLoading(false)
+    }
+  }
 
   const empMap = useMemo(() => {
     const m: Record<string, string> = {}
@@ -195,6 +223,66 @@ export default function RHDashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* AI Insights */}
+      <div className="rounded-xl border border-primary/30 bg-primary/5">
+        <button
+          onClick={aiOpen ? () => setAiOpen(false) : analyzeWithAI}
+          disabled={aiLoading}
+          className="flex w-full items-center justify-between px-4 py-3 text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold text-primary">Análise de RH com IA</span>
+            {aiLoading && <span className="text-xs text-muted-foreground animate-pulse">Analisando...</span>}
+          </div>
+          {aiOpen ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-primary" />}
+        </button>
+
+        {aiOpen && (
+          <div className="border-t border-primary/20 px-4 pb-4 pt-3 space-y-3">
+            {aiError && (
+              <p className="text-xs text-destructive">{aiError}</p>
+            )}
+            {aiInsights && (
+              <>
+                <p className="text-xs text-foreground">{aiInsights.summary}</p>
+
+                {aiInsights.alerts.length > 0 && (
+                  <div className="space-y-1.5">
+                    {aiInsights.alerts.map((alert, i) => (
+                      <div key={i} className={`rounded-lg px-3 py-2 text-xs ${
+                        alert.level === 'critical' ? 'bg-destructive/10 text-destructive' :
+                        alert.level === 'warning'  ? 'bg-warning/10 text-warning' :
+                                                     'bg-primary/10 text-primary'
+                      }`}>
+                        {alert.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {aiInsights.recommendations.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Recomendações</p>
+                    <ul className="space-y-1">
+                      {aiInsights.recommendations.map((r, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+                          <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                          {r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+            {!aiInsights && !aiLoading && !aiError && (
+              <p className="text-xs text-muted-foreground">Clique no botão acima para gerar análise.</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Hiring recommendation */}

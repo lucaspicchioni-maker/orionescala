@@ -173,6 +173,82 @@ export default function DPHPage() {
 
   const [, setProjection] = useLocalStorage<OrderGrid | null>('orion_dph_projection', null)
 
+  // CSV Import modal state
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [csvText, setCsvText] = useState('')
+  const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [importError, setImportError] = useState('')
+
+  function handleImportCSV() {
+    try {
+      if (!csvText.trim()) {
+        setImportError('Cole o CSV exportado do admin.orion')
+        setImportStatus('error')
+        return
+      }
+
+      const lines = csvText.trim().split('\n')
+      // Find the "cadastro" column index
+      const header = lines[0].toLowerCase().split(/[,;\t]/)
+      const cadastroIdx = header.findIndex(h => h.trim().includes('cadastro'))
+
+      if (cadastroIdx < 0) {
+        setImportError('Coluna "cadastro" nao encontrada no CSV. Verifique o formato.')
+        setImportStatus('error')
+        return
+      }
+
+      // Parse dates and count orders per hour per day-of-week
+      const hourDayCount: Record<string, Record<string, number>> = {}
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(/[,;\t]/)
+        const dateStr = cols[cadastroIdx]?.trim()
+        if (!dateStr) continue
+
+        // Try to parse date/time — supports formats like "2024-03-15 14:30:00" or "15/03/2024 14:30"
+        let date: Date | null = null
+        if (dateStr.includes('/')) {
+          const parts = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})\s*(\d{2}):(\d{2})/)
+          if (parts) {
+            date = new Date(Number(parts[3]), Number(parts[2]) - 1, Number(parts[1]), Number(parts[4]), Number(parts[5]))
+          }
+        } else {
+          date = new Date(dateStr)
+        }
+
+        if (!date || isNaN(date.getTime())) continue
+
+        const hour = date.getHours()
+        const dayIndex = date.getDay() // 0=Sun, 1=Mon...
+        const dayMap = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado']
+        const dayKey = dayMap[dayIndex]
+
+        const hourLabel = `${String(hour).padStart(2, '0')}:00-${String((hour + 1) % 24).padStart(2, '0')}:00`
+
+        if (!hourDayCount[hourLabel]) hourDayCount[hourLabel] = {}
+        hourDayCount[hourLabel][dayKey] = (hourDayCount[hourLabel][dayKey] || 0) + 1
+      }
+
+      // Fill the order grid
+      const newGrid = createEmptyGrid()
+      HOUR_LABELS.forEach((hourLabel, hourIdx) => {
+        DAY_KEYS.forEach((dayKey, dayIdx) => {
+          newGrid[hourIdx][dayIdx] = hourDayCount[hourLabel]?.[dayKey] || 0
+        })
+      })
+
+      setOrderGrid(newGrid)
+      setImportStatus('success')
+      setShowImportModal(false)
+      setMainTab('projection')
+      setShowResults(true)
+    } catch {
+      setImportError('Erro ao processar CSV. Verifique o formato.')
+      setImportStatus('error')
+    }
+  }
+
   // Average hourly rate from employees
   const avgHourlyRate = useMemo(() => {
     const active = state.employees.filter((e) => e.status === 'ativo')
@@ -448,6 +524,15 @@ export default function DPHPage() {
             Demanda por Hora — Analise e Projecao
           </p>
         </div>
+
+        {/* Import button */}
+        <button
+          onClick={() => { setShowImportModal(true); setImportStatus('idle'); setCsvText(''); setImportError('') }}
+          className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          <Upload className="h-4 w-4" />
+          Importar Orion
+        </button>
 
         {/* Main Tab Selector */}
         <div className="flex gap-1 rounded-lg bg-muted/50 p-1">
@@ -1213,6 +1298,46 @@ export default function DPHPage() {
             </Card>
           )}
         </>
+      )}
+
+      {/* CSV Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Upload className="h-5 w-5 text-primary" />
+              Importar dados do admin.orion
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Cole o CSV exportado do relatorio de vendas (admin.orion.awfood.com.br).
+              O sistema vai detectar a coluna &quot;cadastro&quot; e contar pedidos por hora/dia.
+            </p>
+            <textarea
+              value={csvText}
+              onChange={e => { setCsvText(e.target.value); setImportStatus('idle') }}
+              rows={10}
+              placeholder={'cadastro;status;valor\n15/03/2024 14:30;entregue;45.90\n15/03/2024 14:55;entregue;32.00\n...'}
+              className="mt-3 w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground font-mono placeholder:text-muted-foreground/50"
+            />
+            {importStatus === 'error' && (
+              <p className="mt-2 text-sm text-destructive">{importError}</p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleImportCSV}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Importar e Calcular
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -1,46 +1,53 @@
 import { useState } from 'react'
-import { LogIn, Zap, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { LogIn, Zap, User, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useApp } from '@/store/AppContext'
 import { cn } from '@/lib/utils'
+import { api, setToken } from '@/lib/api'
 
-interface LoginAccount {
-  email: string
-  password: string
-  name: string
-  role: 'admin' | 'gerente' | 'supervisor' | 'rh' | 'colaborador'
-  employeeId: string
+interface LoginResponse {
+  token: string
+  user: {
+    id: string
+    name: string
+    role: 'admin' | 'gerente' | 'supervisor' | 'rh' | 'colaborador'
+    employeeId: string | null
+  }
 }
-
-const ACCOUNTS: LoginAccount[] = [
-  { email: 'lucas@orion.com', password: 'lucas123', name: 'Lucas', role: 'admin', employeeId: 'lucas' },
-  { email: 'vivian@orion.com', password: 'vivian123', name: 'Vívian', role: 'gerente', employeeId: 'vivian' },
-  { email: 'supervisor@orion.com', password: 'super123', name: 'Supervisor', role: 'supervisor', employeeId: 'supervisor1' },
-  { email: 'rh@orion.com', password: 'rh1234', name: 'RH', role: 'rh', employeeId: 'rh1' },
-  { email: 'miguel@orion.com', password: 'miguel123', name: 'Miguel', role: 'colaborador', employeeId: 'miguel' },
-  { email: 'anna@orion.com', password: 'anna1234', name: 'Anna', role: 'colaborador', employeeId: 'anna' },
-]
 
 export default function LoginPage() {
   const { dispatch } = useApp()
-  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  function handleLogin() {
-    const account = ACCOUNTS.find(
-      a => a.email.toLowerCase() === email.trim().toLowerCase() && a.password === password,
-    )
-    if (!account) {
-      setError('Email ou senha incorretos')
-      return
+  async function handleLogin() {
+    if (!name.trim() || !password) return
+    setLoading(true)
+    setError('')
+
+    try {
+      const data = await api.post<LoginResponse>('/api/auth/login', {
+        name: name.trim(),
+        password,
+      })
+
+      setToken(data.token)
+
+      dispatch({
+        type: 'SET_CURRENT_USER',
+        payload: { name: data.user.name, role: data.user.role },
+      })
+
+      if (data.user.employeeId) {
+        localStorage.setItem('orion_logged_employee', data.user.employeeId)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Credenciais invalidas')
+    } finally {
+      setLoading(false)
     }
-
-    dispatch({
-      type: 'SET_CURRENT_USER',
-      payload: { name: account.name, role: account.role },
-    })
-    localStorage.setItem('orion_logged_employee', account.employeeId)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -56,24 +63,24 @@ export default function LoginPage() {
             <Zap className="h-8 w-8 text-primary" />
           </div>
           <h1 className="mt-4 text-gradient text-3xl font-black">Orion Escala</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Entre com seu email e senha</p>
+          <p className="mt-1 text-sm text-muted-foreground">Entre com seu nome e senha</p>
         </div>
 
         {/* Form */}
         <div className="space-y-4">
           <div>
             <label className="mb-1.5 block text-left text-xs font-medium text-muted-foreground">
-              Email
+              Nome
             </label>
             <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setError('') }}
+                type="text"
+                value={name}
+                onChange={(e) => { setName(e.target.value); setError('') }}
                 onKeyDown={handleKeyDown}
-                placeholder="seu@email.com"
-                autoComplete="email"
+                placeholder="Seu nome"
+                autoComplete="username"
                 className="w-full rounded-xl border border-border bg-card pl-10 pr-4 py-3.5 text-sm font-medium text-foreground placeholder:text-muted-foreground/50"
               />
             </div>
@@ -90,7 +97,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError('') }}
                 onKeyDown={handleKeyDown}
-                placeholder="••••••"
+                placeholder="Sua senha"
                 autoComplete="current-password"
                 className="w-full rounded-xl border border-border bg-card pl-10 pr-12 py-3.5 text-sm font-medium text-foreground placeholder:text-muted-foreground/50"
               />
@@ -110,19 +117,23 @@ export default function LoginPage() {
 
           <button
             onClick={handleLogin}
+            disabled={loading || !name.trim() || !password}
             className={cn(
               'flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-base font-bold transition-all',
-              email && password
+              name.trim() && password && !loading
                 ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                 : 'cursor-not-allowed bg-primary/30 text-primary/50',
             )}
           >
-            <LogIn className="h-5 w-5" />
-            Entrar
+            {loading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <LogIn className="h-5 w-5" />
+            )}
+            {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </div>
 
-        {/* Help text */}
         <p className="text-xs text-muted-foreground">
           Peca suas credenciais ao gestor da operacao.
         </p>

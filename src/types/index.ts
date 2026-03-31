@@ -1,3 +1,5 @@
+export type UserRole = 'colaborador' | 'supervisor' | 'gerente' | 'rh' | 'admin'
+
 export interface Employee {
   id: string
   name: string
@@ -447,7 +449,7 @@ export interface Announcement {
   createdBy: string
   createdAt: string
   expiresAt: string | null
-  targetRoles: ('colaborador' | 'supervisor' | 'gerente' | 'rh' | 'admin')[]
+  targetRoles: UserRole[]
   priority: 'normal' | 'urgent'
   readBy: string[]
 }

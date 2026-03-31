@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import type { UserRole } from '@/types'
 import { AppShell } from '@/components/layout/AppShell'
 import { AppProvider, useApp } from '@/store/AppContext'
 import { Onboarding } from '@/components/Onboarding'
+import { ToastProvider } from '@/components/ui/Toast'
 import DPHPage from '@/pages/DPHPage'
 import EscalaPage from '@/pages/EscalaPage'
 import SaldoPage from '@/pages/SaldoPage'
@@ -31,29 +33,23 @@ import MuralPage from '@/pages/MuralPage'
 import CustosOperacionaisPage from '@/pages/CustosOperacionaisPage'
 import AvaliacaoTurnoPage from '@/pages/AvaliacaoTurnoPage'
 import WhatsAppPage from '@/pages/WhatsAppPage'
+import ConfirmarPage from '@/pages/ConfirmarPage'
+import ReciboPagamentoPage from '@/pages/ReciboPagamentoPage'
+import ConvocacoesPage from '@/pages/ConvocacoesPage'
 
-type Role = 'colaborador' | 'supervisor' | 'gerente' | 'rh' | 'admin'
-
-// Route access control: which roles can access each route
-const ROUTE_ACCESS: Record<string, Role[]> = {
-  // Everyone
+const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/': ['admin', 'gerente', 'supervisor', 'rh', 'colaborador'],
   '/mural': ['admin', 'gerente', 'supervisor', 'rh', 'colaborador'],
   '/configuracoes': ['admin', 'gerente', 'supervisor', 'rh', 'colaborador'],
-
-  // Colaborador specific
   '/minha-area': ['admin', 'gerente', 'supervisor', 'colaborador'],
   '/checkin': ['admin', 'supervisor', 'colaborador'],
   '/disponibilidade': ['admin', 'colaborador'],
   '/avaliacao-turno': ['admin', 'colaborador'],
-
-  // Supervisor + up
   '/escala': ['admin', 'gerente', 'supervisor'],
   '/ponto': ['admin', 'gerente', 'supervisor'],
   '/produtividade': ['admin', 'gerente', 'supervisor'],
   '/feedback': ['admin', 'gerente', 'supervisor'],
-
-  // Gerente + admin
+  '/convocacoes': ['admin', 'gerente', 'supervisor'],
   '/dashboard-ao-vivo': ['admin', 'gerente'],
   '/custos': ['admin', 'gerente', 'rh'],
   '/dimensionamento': ['admin', 'gerente', 'rh'],
@@ -62,11 +58,8 @@ const ROUTE_ACCESS: Record<string, Role[]> = {
   '/whatsapp': ['admin', 'gerente'],
   '/colaboradores': ['admin', 'gerente', 'supervisor', 'rh'],
   '/relatorios': ['admin', 'gerente'],
-
-  // RH specific
   '/rh': ['admin', 'rh'],
-
-  // Misc (accessible to managers)
+  '/recibo': ['admin', 'gerente', 'rh'],
   '/dph': ['admin', 'gerente', 'supervisor'],
   '/saldo': ['admin', 'gerente', 'supervisor'],
   '/kpis': ['admin', 'gerente'],
@@ -93,6 +86,7 @@ function AppRoutes() {
   if (!isLoggedIn) {
     return (
       <Routes>
+        <Route path="/confirmar" element={<ConfirmarPage />} />
         <Route path="*" element={<LoginPage />} />
       </Routes>
     )
@@ -102,6 +96,9 @@ function AppRoutes() {
     <>
       <Onboarding />
       <Routes>
+        {/* Public page — no AppShell */}
+        <Route path="/confirmar" element={<ConfirmarPage />} />
+
         <Route element={<AppShell />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/dph" element={<RoleGuard path="/dph"><DPHPage /></RoleGuard>} />
@@ -130,6 +127,8 @@ function AppRoutes() {
           <Route path="/custos" element={<RoleGuard path="/custos"><CustosOperacionaisPage /></RoleGuard>} />
           <Route path="/avaliacao-turno" element={<RoleGuard path="/avaliacao-turno"><AvaliacaoTurnoPage /></RoleGuard>} />
           <Route path="/whatsapp" element={<RoleGuard path="/whatsapp"><WhatsAppPage /></RoleGuard>} />
+          <Route path="/recibo" element={<RoleGuard path="/recibo"><ReciboPagamentoPage /></RoleGuard>} />
+          <Route path="/convocacoes" element={<RoleGuard path="/convocacoes"><ConvocacoesPage /></RoleGuard>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -140,9 +139,11 @@ function AppRoutes() {
 function App() {
   return (
     <AppProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <ToastProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </ToastProvider>
     </AppProvider>
   )
 }

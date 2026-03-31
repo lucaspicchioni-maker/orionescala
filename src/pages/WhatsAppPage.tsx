@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { MessageCircle, Send, Settings, Users, History, CheckCheck, Clock, AlertCircle } from 'lucide-react'
+import { MessageCircle, Send, Settings, Users, History, CheckCheck, Clock, AlertCircle, Sparkles } from 'lucide-react'
+import { getWhatsAppMessageAI } from '@/services/aiService'
 import { Card } from '@/components/ui/Card'
 import { useApp } from '@/store/AppContext'
 import { cn } from '@/lib/utils'
@@ -61,6 +62,26 @@ export default function WhatsAppPage() {
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].id)
   const [customMessage, setCustomMessage] = useState('')
   const [sending, setSending] = useState(false)
+  const [aiGenerating, setAiGenerating] = useState(false)
+
+  async function generateWithAI() {
+    if (selectedEmployees.size === 0) return
+    setAiGenerating(true)
+    try {
+      const firstEmpId = [...selectedEmployees][0]
+      const emp = activeEmployees.find(e => e.id === firstEmpId)
+      if (!emp) return
+      const { message } = await getWhatsAppMessageAI({
+        type: currentTemplate?.type ?? 'custom',
+        employeeName: emp.name,
+        context: { week: currentWeek, template: currentTemplate?.label },
+      })
+      setCustomMessage(message)
+      setSelectedTemplate('personalizado')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
 
   // ── Config handlers ──
   function handleSaveConfig() {
@@ -365,13 +386,23 @@ export default function WhatsAppPage() {
               ))}
 
               {selectedTemplate === 'personalizado' && (
-                <textarea
-                  value={customMessage}
-                  onChange={(e) => setCustomMessage(e.target.value)}
-                  placeholder="Digite sua mensagem personalizada... Use {nome} para o nome do colaborador."
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary resize-none text-sm"
-                />
+                <div className="space-y-2">
+                  <textarea
+                    value={customMessage}
+                    onChange={(e) => setCustomMessage(e.target.value)}
+                    placeholder="Digite sua mensagem personalizada... Use {nome} para o nome do colaborador."
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary resize-none text-sm"
+                  />
+                  <button
+                    onClick={generateWithAI}
+                    disabled={aiGenerating || selectedEmployees.size === 0}
+                    className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {aiGenerating ? 'Gerando...' : 'Gerar com IA'}
+                  </button>
+                </div>
               )}
             </div>
           </Card>

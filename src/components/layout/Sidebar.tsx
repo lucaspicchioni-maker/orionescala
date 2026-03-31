@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import type { ElementType } from 'react'
 import {
@@ -25,11 +25,13 @@ import {
   Briefcase,
   BarChart3,
   Settings2,
+  Bell,
+  FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
+import type { UserRole } from '@/types'
 
-type Role = 'colaborador' | 'supervisor' | 'gerente' | 'rh' | 'admin'
 
 interface NavItem {
   label: string
@@ -49,7 +51,7 @@ function isGroup(entry: NavEntry): entry is NavGroup {
   return 'items' in entry
 }
 
-const navByRole: Record<Role, NavEntry[]> = {
+const navByRole: Record<UserRole, NavEntry[]> = {
   admin: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Ao Vivo', icon: Activity, to: '/dashboard-ao-vivo' },
@@ -57,6 +59,7 @@ const navByRole: Record<Role, NavEntry[]> = {
       label: 'Operacao', icon: Briefcase, items: [
         { label: 'Escala', icon: CalendarDays, to: '/escala' },
         { label: 'Equipe', icon: Users, to: '/colaboradores' },
+        { label: 'Convocacoes', icon: Bell, to: '/convocacoes' },
       ],
     },
     {
@@ -64,6 +67,7 @@ const navByRole: Record<Role, NavEntry[]> = {
         { label: 'Custos', icon: DollarSign, to: '/custos' },
         { label: 'Regras', icon: Shield, to: '/regras' },
         { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+        { label: 'Recibo', icon: FileText, to: '/recibo' },
       ],
     },
     {
@@ -80,6 +84,7 @@ const navByRole: Record<Role, NavEntry[]> = {
       label: 'Operacao', icon: Briefcase, items: [
         { label: 'Escala', icon: CalendarDays, to: '/escala' },
         { label: 'Equipe', icon: Users, to: '/colaboradores' },
+        { label: 'Convocacoes', icon: Bell, to: '/convocacoes' },
         { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
       ],
     },
@@ -88,6 +93,7 @@ const navByRole: Record<Role, NavEntry[]> = {
         { label: 'Custos', icon: DollarSign, to: '/custos' },
         { label: 'Regras', icon: Shield, to: '/regras' },
         { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
+        { label: 'Recibo', icon: FileText, to: '/recibo' },
       ],
     },
     {
@@ -102,6 +108,7 @@ const navByRole: Record<Role, NavEntry[]> = {
     {
       label: 'Operacao', icon: Briefcase, items: [
         { label: 'Escala', icon: CalendarDays, to: '/escala' },
+        { label: 'Convocacoes', icon: Bell, to: '/convocacoes' },
         { label: 'Check-in', icon: MapPin, to: '/checkin' },
         { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
         { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
@@ -117,6 +124,7 @@ const navByRole: Record<Role, NavEntry[]> = {
         { label: 'Equipe', icon: Users, to: '/colaboradores' },
         { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
         { label: 'Custos', icon: DollarSign, to: '/custos' },
+        { label: 'Recibo', icon: FileText, to: '/recibo' },
       ],
     },
     { label: 'Mural', icon: Megaphone, to: '/mural' },
@@ -135,7 +143,7 @@ const navByRole: Record<Role, NavEntry[]> = {
   ],
 }
 
-const ROLE_LABELS: Record<Role, string> = {
+const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Admin',
   gerente: 'Gerente',
   supervisor: 'Supervisor',
@@ -147,6 +155,7 @@ function NavGroupItem({ group, onNavigate }: { group: NavGroup; onNavigate: () =
   const location = useLocation()
   const isAnyActive = group.items.some(item => location.pathname === item.to)
   const [open, setOpen] = useState(isAnyActive)
+  useEffect(() => { setOpen(isAnyActive) }, [isAnyActive])
 
   return (
     <div>
@@ -274,7 +283,7 @@ export function Sidebar() {
           <div className="space-y-0.5">
             {entries.map((entry, i) =>
               isGroup(entry) ? (
-                <NavGroupItem key={i} group={entry} onNavigate={closeMobile} />
+                <NavGroupItem key={entry.label} group={entry} onNavigate={closeMobile} />
               ) : (
                 <NavLink
                   key={entry.to}

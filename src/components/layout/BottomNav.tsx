@@ -16,8 +16,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useMemo } from 'react'
 import { useApp } from '@/store/AppContext'
-
-type Role = 'colaborador' | 'supervisor' | 'gerente' | 'rh' | 'admin'
+import type { UserRole } from '@/types'
 
 interface NavItem {
   label: string
@@ -26,7 +25,7 @@ interface NavItem {
 }
 
 // Mobile: max 5 items
-const bottomByRole: Record<Role, NavItem[]> = {
+const bottomByRole: Record<UserRole, NavItem[]> = {
   admin: [
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Ao Vivo', icon: Activity, to: '/dashboard-ao-vivo' },

@@ -23,6 +23,15 @@ const pageTitles: Record<string, string> = {
   '/regras': 'Regras de Ouro',
   '/dimensionamento': 'Dimensionamento',
   '/rh': 'Painel RH',
+  '/relatorio-layer': 'Relatorio',
+  '/disponibilidade': 'Disponibilidade',
+  '/dashboard-ao-vivo': 'Dashboard Ao Vivo',
+  '/mural': 'Mural',
+  '/custos': 'Custos Operacionais',
+  '/avaliacao-turno': 'Avaliacao Turno',
+  '/whatsapp': 'WhatsApp',
+  '/recibo': 'Recibo de Pagamento',
+  '/convocacoes': 'Convocacoes',
 }
 
 function formatDatePt(): string {

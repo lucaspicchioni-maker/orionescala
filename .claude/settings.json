@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:drive.google.com)",
+      "WebSearch",
+      "WebFetch(domain:blog.tio.digital)",
+      "WebFetch(domain:www.foodconnection.com.br)",
+      "WebFetch(domain:praticasdepessoal.com.br)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:claude.ai)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(npx vite:*)",
+      "Bash(echo \"Exit: $?\")"
+    ]
+  }
+}
