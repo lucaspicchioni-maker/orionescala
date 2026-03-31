@@ -78,7 +78,7 @@ export default function UsuariosPage() {
   async function deleteUser(user: SystemUser) {
     if (!confirm(`Remover o usuario "${user.name}"?`)) return
     try {
-      await api.delete(`/api/users/${user.id}`)
+      await api.del(`/api/users/${user.id}`)
       toast('success', 'Usuario removido')
       setUsers(prev => prev.filter(u => u.id !== user.id))
     } catch (err) {

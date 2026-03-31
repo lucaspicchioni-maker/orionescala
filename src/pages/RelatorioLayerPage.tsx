@@ -328,7 +328,7 @@ export default function RelatorioLayerPage() {
   const visibleTabs = TABS.filter(tab => {
     if (tab.id === 'geral') return true
     if (role === 'admin' || role === 'gerente') return true
-    if (role === 'rh') return tab.id === 'rh' || tab.id === 'geral'
+    if (role === 'rh') return tab.id === 'rh' || tab.id === ('geral' as string)
     if (role === 'supervisor') return tab.id === 'supervisor' || tab.id === 'expeditor'
     return tab.id === 'expeditor'
   })

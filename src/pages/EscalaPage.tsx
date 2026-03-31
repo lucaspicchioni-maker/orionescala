@@ -223,7 +223,7 @@ export default function EscalaPage() {
         const fallback = week1Data.find(d => d.day === dayKey)
         const slots = source
           ? source.slots.map(s => ({ ...s, assignments: [], id: crypto.randomUUID() }))
-          : (fallback?.hours ?? []).map((h, hi) => ({
+          : (fallback?.hours ?? []).map((h, _hi) => ({
               hour: h.hour,
               requiredPeople: h.people,
               assignments: [],
