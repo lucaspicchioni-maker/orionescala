@@ -101,8 +101,7 @@ export default function HomePage() {
 
   // ── Chart data ───────────────────────────────────────────────────────────
 
-  const DAY_KEYS = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'] as const
-  const DAY_SHORT: Record<string, string> = {
+    const DAY_SHORT: Record<string, string> = {
     segunda: 'Seg', terca: 'Ter', quarta: 'Qua',
     quinta: 'Qui', sexta: 'Sex', sabado: 'Sab', domingo: 'Dom',
   }
@@ -295,7 +294,7 @@ export default function HomePage() {
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                    formatter={(value: number) => [`${value}%`, 'Presenca']}
+                    formatter={(value) => [String(Number(value)) + '%', 'Presenca']}
                   />
                   <Bar dataKey="presence" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
@@ -388,7 +387,7 @@ export default function HomePage() {
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                    formatter={(value: number) => [`${value}%`, 'Presenca']}
+                    formatter={(value) => [String(Number(value)) + '%', 'Presenca']}
                   />
                   <Bar dataKey="presence" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
