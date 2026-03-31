@@ -223,7 +223,7 @@ export default function HomePage() {
                       <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                       <Tooltip
                         contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                        formatter={(value: number) => [value, 'Pedidos']}
+                        formatter={(value) => [Number(value), 'Pedidos']}
                       />
                       <Line type="monotone" dataKey="pedidos" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 4 }} activeDot={{ r: 6 }} />
                     </LineChart>
@@ -313,7 +313,7 @@ export default function HomePage() {
                   <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                    formatter={(value: number) => [value, 'Pedidos']}
+                    formatter={(value) => [Number(value), 'Pedidos']}
                   />
                   <Line type="monotone" dataKey="pedidos" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 4 }} activeDot={{ r: 6 }} />
                 </LineChart>
@@ -412,7 +412,7 @@ export default function HomePage() {
                   <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                    formatter={(value: number) => [formatCurrency(value), 'Custo']}
+                    formatter={(value) => [formatCurrency(Number(value)), 'Custo']}
                   />
                   <Area type="monotone" dataKey="custo" stroke="#22c55e" strokeWidth={2} fill="url(#costGradient)" />
                 </AreaChart>
@@ -430,7 +430,7 @@ export default function HomePage() {
                   <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                    formatter={(value: number) => [value, 'Pedidos']}
+                    formatter={(value) => [Number(value), 'Pedidos']}
                   />
                   <Line type="monotone" dataKey="pedidos" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 4 }} activeDot={{ r: 6 }} />
                 </LineChart>
