@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useApp } from '@/store/AppContext'
 import { Clock, TrendingUp, TrendingDown, Minus, Plus, RefreshCw } from 'lucide-react'
+import { api } from '@/lib/api'
+import type { BancoHorasEntry } from '@/types'
 
 export default function BancoHorasPage() {
   const { state, dispatch } = useApp()
@@ -12,6 +14,13 @@ export default function BancoHorasPage() {
   const [adjNotes, setAdjNotes] = useState('')
 
   const activeEmployees = state.employees.filter(e => e.status === 'ativo')
+
+  // Load from API on mount
+  useEffect(() => {
+    api.get<BancoHorasEntry[]>(`/api/banco-horas/week/${state.currentWeek}`)
+      .then(data => dispatch({ type: 'SET_BANCO_HORAS', payload: data }))
+      .catch(() => {})
+  }, [state.currentWeek, dispatch])
 
   // Calculate banco de horas from ponto records + manual entries
   const employeeBalances = useMemo(() => {
@@ -63,25 +72,30 @@ export default function BancoHorasPage() {
     return `${sign}${h}h${String(m).padStart(2, '0')}min`
   }
 
-  function submitAdjustment() {
+  async function submitAdjustment() {
     if (!adjEmployee || !adjMinutes) return
     const mins = parseInt(adjMinutes)
     if (isNaN(mins)) return
 
-    dispatch({
-      type: 'ADD_BANCO_HORAS',
-      payload: {
-        id: crypto.randomUUID(),
-        employeeId: adjEmployee,
-        date: new Date().toISOString().split('T')[0],
-        weekStart: state.currentWeek,
-        scheduledMinutes: 0,
-        workedMinutes: 0,
-        balanceMinutes: mins,
-        type: 'adjustment',
-        notes: adjNotes || 'Ajuste manual',
-      },
-    })
+    const entry: BancoHorasEntry = {
+      id: crypto.randomUUID(),
+      employeeId: adjEmployee,
+      date: new Date().toISOString().split('T')[0],
+      weekStart: state.currentWeek,
+      scheduledMinutes: 0,
+      workedMinutes: 0,
+      balanceMinutes: mins,
+      type: 'adjustment',
+      notes: adjNotes || 'Ajuste manual',
+    }
+
+    try {
+      await api.post('/api/banco-horas', entry)
+      const fresh = await api.get<BancoHorasEntry[]>(`/api/banco-horas/week/${state.currentWeek}`)
+      dispatch({ type: 'SET_BANCO_HORAS', payload: fresh })
+    } catch {
+      dispatch({ type: 'ADD_BANCO_HORAS', payload: entry })
+    }
     setShowAdjust(false)
     setAdjEmployee('')
     setAdjMinutes('')
@@ -97,30 +111,45 @@ export default function BancoHorasPage() {
   }, [state.bancoHoras])
 
   // Sync from ponto records (auto-generate entries)
-  function syncFromPonto() {
+  async function syncFromPonto() {
     const existing = new Set(state.bancoHoras.filter(b => b.type === 'regular').map(b => `${b.employeeId}-${b.date}`))
 
+    const entries: BancoHorasEntry[] = []
     state.pontoRecords.forEach(p => {
       const key = `${p.employeeId}-${p.date}`
       if (existing.has(key)) return
       if (!p.scheduledStart || !p.scheduledEnd) return
 
       const scheduled = (parseInt(p.scheduledEnd.split(':')[0]) - parseInt(p.scheduledStart.split(':')[0])) * 60
-      dispatch({
-        type: 'ADD_BANCO_HORAS',
-        payload: {
-          id: crypto.randomUUID(),
-          employeeId: p.employeeId,
-          date: p.date,
-          weekStart: state.currentWeek,
-          scheduledMinutes: scheduled,
-          workedMinutes: p.workedMinutes,
-          balanceMinutes: p.workedMinutes - scheduled,
-          type: 'regular',
-          notes: '',
-        },
+      entries.push({
+        id: crypto.randomUUID(),
+        employeeId: p.employeeId,
+        date: p.date,
+        weekStart: state.currentWeek,
+        scheduledMinutes: scheduled,
+        workedMinutes: p.workedMinutes,
+        balanceMinutes: p.workedMinutes - scheduled,
+        type: 'regular',
+        notes: '',
       })
     })
+
+    for (const entry of entries) {
+      try {
+        await api.post('/api/banco-horas', entry)
+      } catch {
+        dispatch({ type: 'ADD_BANCO_HORAS', payload: entry })
+      }
+    }
+
+    if (entries.length > 0) {
+      try {
+        const fresh = await api.get<BancoHorasEntry[]>(`/api/banco-horas/week/${state.currentWeek}`)
+        dispatch({ type: 'SET_BANCO_HORAS', payload: fresh })
+      } catch {
+        // already dispatched individually above
+      }
+    }
   }
 
   const totalTeamBalance = Object.values(employeeBalances).reduce((s, b) => s + b.balance, 0)

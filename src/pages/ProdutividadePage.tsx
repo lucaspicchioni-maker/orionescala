@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Zap,
   AlertTriangle,
@@ -35,6 +35,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { useApp } from '@/store/AppContext'
 import { cn, formatCurrency } from '@/lib/utils'
+import { api } from '@/lib/api'
 import type { ProductivityRecord, WeeklyGoal } from '@/types'
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -153,6 +154,13 @@ export default function ProdutividadePage() {
 
   const weekStart = useMemo(() => getWeekStart(weekOffset), [weekOffset])
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart])
+
+  // Load from API when week changes
+  useEffect(() => {
+    api.get<ProductivityRecord[]>(`/api/productivity/week/${weekStart}`)
+      .then(data => dispatch({ type: 'SET_PRODUCTIVITY_RECORDS', payload: data }))
+      .catch(() => {})
+  }, [weekStart, dispatch])
 
   const activeEmployees = useMemo(
     () => state.employees.filter((e) => e.status === 'ativo' && e.role !== 'gerente'),
@@ -334,7 +342,7 @@ export default function ProdutividadePage() {
     notes: '',
   })
 
-  const saveRecord = useCallback(() => {
+  const saveRecord = useCallback(async () => {
     const hoursWorked = parseFloat(recordForm.hoursWorked) || 0
     const totalOrders = parseInt(recordForm.totalOrders) || 0
     // Check if record already exists for this employee+week — update it
@@ -355,10 +363,16 @@ export default function ProdutividadePage() {
       hoursWorked,
       notes: recordForm.notes,
     }
-    if (existing) {
-      dispatch({ type: 'UPDATE_PRODUCTIVITY_RECORD', payload: record })
-    } else {
-      dispatch({ type: 'ADD_PRODUCTIVITY_RECORD', payload: record })
+    try {
+      await api.post('/api/productivity', record)
+      const fresh = await api.get<ProductivityRecord[]>(`/api/productivity/week/${weekStart}`)
+      dispatch({ type: 'SET_PRODUCTIVITY_RECORDS', payload: fresh })
+    } catch {
+      if (existing) {
+        dispatch({ type: 'UPDATE_PRODUCTIVITY_RECORD', payload: record })
+      } else {
+        dispatch({ type: 'ADD_PRODUCTIVITY_RECORD', payload: record })
+      }
     }
     setShowRecordModal(false)
     setRecordForm({

@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { CalendarDays, Send, Check } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { useApp } from '@/store/AppContext'
 import { HOUR_RANGES } from '@/types'
-import type { AvailabilitySlot, DayOfWeek } from '@/types'
+import type { AvailabilityDeclaration, AvailabilitySlot, DayOfWeek } from '@/types'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api'
 
 const DAYS: DayOfWeek[] = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
 const DAY_SHORT: Record<DayOfWeek, string> = {
@@ -51,6 +52,13 @@ export default function DisponibilidadePage() {
     const thisWeek = getWeekStart(today)
     return addWeeks(thisWeek, 1)
   })
+
+  // Load from API when week changes
+  useEffect(() => {
+    api.get<AvailabilityDeclaration[]>(`/api/availabilities/week/${weekStart}`)
+      .then(data => dispatch({ type: 'SET_AVAILABILITIES', payload: data }))
+      .catch(() => {})
+  }, [weekStart, dispatch])
 
   // Selected cells: key = "day|hourRange"
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -108,7 +116,7 @@ export default function DisponibilidadePage() {
     })
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (selected.size === 0) return
 
     // Build slots grouped by day
@@ -124,17 +132,22 @@ export default function DisponibilidadePage() {
       hours: hours.sort(),
     }))
 
-    dispatch({
-      type: 'ADD_AVAILABILITY',
-      payload: {
-        id: existingDeclaration?.id || crypto.randomUUID(),
-        employeeId: loggedEmployeeId,
-        weekStart,
-        slots,
-        submittedAt: new Date().toISOString(),
-        status: 'submitted',
-      },
-    })
+    const declaration: AvailabilityDeclaration = {
+      id: existingDeclaration?.id || crypto.randomUUID(),
+      employeeId: loggedEmployeeId,
+      weekStart,
+      slots,
+      submittedAt: new Date().toISOString(),
+      status: 'submitted',
+    }
+
+    try {
+      await api.put('/api/availabilities', declaration)
+      const fresh = await api.get<AvailabilityDeclaration[]>(`/api/availabilities/week/${weekStart}`)
+      dispatch({ type: 'SET_AVAILABILITIES', payload: fresh })
+    } catch {
+      dispatch({ type: 'ADD_AVAILABILITY', payload: declaration })
+    }
   }
 
   // Dragging state for mobile/desktop painting

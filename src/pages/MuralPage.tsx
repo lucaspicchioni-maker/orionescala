@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Megaphone, Plus, Eye, Bell, X } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { useApp } from '@/store/AppContext'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api'
 import type { Announcement } from '@/types'
 
 const ROLE_OPTIONS = [
@@ -22,6 +23,13 @@ export default function MuralPage() {
   const role = state.currentUser.role
   const loggedEmployeeId = localStorage.getItem('orion_logged_employee') || ''
   const canCreate = CAN_CREATE_ROLES.includes(role)
+
+  // Load from API on mount
+  useEffect(() => {
+    api.get<Announcement[]>('/api/announcements')
+      .then(data => dispatch({ type: 'SET_ANNOUNCEMENTS', payload: data }))
+      .catch(() => {})
+  }, [dispatch])
 
   // Form state
   const [showForm, setShowForm] = useState(false)
@@ -65,7 +73,7 @@ export default function MuralPage() {
     setShowForm(false)
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim() || !body.trim() || targetRoles.length === 0) return
 
@@ -81,15 +89,27 @@ export default function MuralPage() {
       readBy: [],
     }
 
-    dispatch({ type: 'ADD_ANNOUNCEMENT', payload: announcement })
+    try {
+      await api.post('/api/announcements', announcement)
+      const fresh = await api.get<Announcement[]>('/api/announcements')
+      dispatch({ type: 'SET_ANNOUNCEMENTS', payload: fresh })
+    } catch {
+      dispatch({ type: 'ADD_ANNOUNCEMENT', payload: announcement })
+    }
     resetForm()
   }
 
-  function handleMarkRead(announcementId: string) {
-    dispatch({
-      type: 'MARK_ANNOUNCEMENT_READ',
-      payload: { announcementId, employeeId: loggedEmployeeId },
-    })
+  async function handleMarkRead(announcementId: string) {
+    try {
+      await api.post(`/api/announcements/${announcementId}/read`, { employeeId: loggedEmployeeId })
+      const fresh = await api.get<Announcement[]>('/api/announcements')
+      dispatch({ type: 'SET_ANNOUNCEMENTS', payload: fresh })
+    } catch {
+      dispatch({
+        type: 'MARK_ANNOUNCEMENT_READ',
+        payload: { announcementId, employeeId: loggedEmployeeId },
+      })
+    }
   }
 
   function formatDate(iso: string) {

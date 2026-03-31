@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useApp } from '@/store/AppContext'
 import { ArrowLeftRight, Check, X, Clock, Plus } from 'lucide-react'
+import { api } from '@/lib/api'
+import type { ShiftSwapRequest } from '@/types'
 
 export default function TrocaTurnoPage() {
   const { state, dispatch } = useApp()
@@ -16,6 +18,13 @@ export default function TrocaTurnoPage() {
   const [reason, setReason] = useState('')
 
   const activeEmployees = state.employees.filter(e => e.status === 'ativo' && e.id !== loggedEmployeeId)
+
+  // Load from API on mount
+  useEffect(() => {
+    api.get<ShiftSwapRequest[]>('/api/shift-swaps')
+      .then(data => dispatch({ type: 'SET_SHIFT_SWAPS', payload: data }))
+      .catch(() => {})
+  }, [dispatch])
   const empMap = useMemo(() => {
     const m: Record<string, string> = {}
     state.employees.forEach(e => { m[e.id] = e.name })
@@ -32,24 +41,30 @@ export default function TrocaTurnoPage() {
 
   const pendingCount = visibleSwaps.filter(s => s.status === 'pending').length
 
-  function submitRequest() {
+  async function submitRequest() {
     if (!targetId || !swapDate || !myShift || !theirShift) return
-    dispatch({
-      type: 'ADD_SHIFT_SWAP',
-      payload: {
-        id: crypto.randomUUID(),
-        requesterId: loggedEmployeeId,
-        targetId,
-        date: swapDate,
-        requesterShift: myShift,
-        targetShift: theirShift,
-        reason,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        resolvedAt: null,
-        resolvedBy: null,
-      },
-    })
+
+    const request: ShiftSwapRequest = {
+      id: crypto.randomUUID(),
+      requesterId: loggedEmployeeId,
+      targetId,
+      date: swapDate,
+      requesterShift: myShift,
+      targetShift: theirShift,
+      reason,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      resolvedAt: null,
+      resolvedBy: null,
+    }
+
+    try {
+      await api.post('/api/shift-swaps', request)
+      const fresh = await api.get<ShiftSwapRequest[]>('/api/shift-swaps')
+      dispatch({ type: 'SET_SHIFT_SWAPS', payload: fresh })
+    } catch {
+      dispatch({ type: 'ADD_SHIFT_SWAP', payload: request })
+    }
     setShowNewRequest(false)
     setTargetId('')
     setSwapDate('')
@@ -58,18 +73,25 @@ export default function TrocaTurnoPage() {
     setReason('')
   }
 
-  function resolveSwap(swapId: string, status: 'accepted' | 'rejected') {
+  async function resolveSwap(swapId: string, status: 'accepted' | 'rejected') {
     const swap = state.shiftSwaps.find(s => s.id === swapId)
     if (!swap) return
-    dispatch({
-      type: 'UPDATE_SHIFT_SWAP',
-      payload: {
-        ...swap,
-        status,
-        resolvedAt: new Date().toISOString(),
-        resolvedBy: loggedEmployeeId,
-      },
-    })
+
+    try {
+      await api.put(`/api/shift-swaps/${swapId}/resolve`, { status })
+      const fresh = await api.get<ShiftSwapRequest[]>('/api/shift-swaps')
+      dispatch({ type: 'SET_SHIFT_SWAPS', payload: fresh })
+    } catch {
+      dispatch({
+        type: 'UPDATE_SHIFT_SWAP',
+        payload: {
+          ...swap,
+          status,
+          resolvedAt: new Date().toISOString(),
+          resolvedBy: loggedEmployeeId,
+        },
+      })
+    }
   }
 
   const statusColors: Record<string, string> = {

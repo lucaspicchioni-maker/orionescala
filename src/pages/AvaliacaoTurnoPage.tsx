@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Star, Send, MessageCircle, History } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { useApp } from '@/store/AppContext'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api'
 import type { ShiftFeedback } from '@/types'
 
 const CRITERIA = [
@@ -85,6 +86,13 @@ export default function AvaliacaoTurnoPage() {
   const today = getToday()
   const weekStart = getWeekStart()
 
+  // Load from API on mount
+  useEffect(() => {
+    api.get<ShiftFeedback[]>(`/api/shift-feedbacks/week/${weekStart}`)
+      .then(data => dispatch({ type: 'SET_SHIFT_FEEDBACKS', payload: data }))
+      .catch(() => {})
+  }, [weekStart, dispatch])
+
   const [scores, setScores] = useState<Record<ScoreKey, number>>({
     organizacao: 0,
     equipamentos: 0,
@@ -119,7 +127,7 @@ export default function AvaliacaoTurnoPage() {
 
   const allFilled = Object.values(scores).every((v) => v > 0)
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!allFilled || alreadySubmittedToday) return
 
     const feedback: ShiftFeedback = {
@@ -132,7 +140,13 @@ export default function AvaliacaoTurnoPage() {
       createdAt: new Date().toISOString(),
     }
 
-    dispatch({ type: 'ADD_SHIFT_FEEDBACK', payload: feedback })
+    try {
+      await api.post('/api/shift-feedbacks', feedback)
+      const fresh = await api.get<ShiftFeedback[]>(`/api/shift-feedbacks/week/${weekStart}`)
+      dispatch({ type: 'SET_SHIFT_FEEDBACKS', payload: fresh })
+    } catch {
+      dispatch({ type: 'ADD_SHIFT_FEEDBACK', payload: feedback })
+    }
     setSubmitted(true)
     setScores({
       organizacao: 0,

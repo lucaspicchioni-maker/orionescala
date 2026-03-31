@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useApp } from '@/store/AppContext'
 import { Star, MessageSquare, Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import { api } from '@/lib/api'
+import type { FeedbackRecord } from '@/types'
 
 const CRITERIA = [
   { key: 'proatividade', label: 'Proatividade', desc: 'Iniciativa e autonomia nas tarefas' },
@@ -42,6 +44,13 @@ export default function FeedbackPage() {
 
   const activeEmployees = state.employees.filter(e => e.status === 'ativo')
 
+  // Load from API on mount
+  useEffect(() => {
+    api.get<FeedbackRecord[]>(`/api/feedbacks/week/${state.currentWeek}`)
+      .then(data => dispatch({ type: 'SET_FEEDBACKS', payload: data }))
+      .catch(() => {})
+  }, [state.currentWeek, dispatch])
+
   const visibleFeedbacks = useMemo(() => {
     if (role === 'colaborador') {
       return state.feedbacks.filter(f => f.employeeId === loggedEmployeeId)
@@ -70,22 +79,28 @@ export default function FeedbackPage() {
     return avgs
   }, [state.feedbacks])
 
-  function submitFeedback() {
+  async function submitFeedback() {
     if (!formEmployee || Object.values(scores).some(s => s === 0)) return
-    dispatch({
-      type: 'ADD_FEEDBACK',
-      payload: {
-        id: crypto.randomUUID(),
-        employeeId: formEmployee,
-        weekStart: state.currentWeek,
-        evaluatorId: loggedEmployeeId,
-        scores,
-        strengths,
-        improvements,
-        notes,
-        createdAt: new Date().toISOString(),
-      },
-    })
+
+    const record: FeedbackRecord = {
+      id: crypto.randomUUID(),
+      employeeId: formEmployee,
+      weekStart: state.currentWeek,
+      evaluatorId: loggedEmployeeId,
+      scores,
+      strengths,
+      improvements,
+      notes,
+      createdAt: new Date().toISOString(),
+    }
+
+    try {
+      await api.post('/api/feedbacks', record)
+      const fresh = await api.get<FeedbackRecord[]>(`/api/feedbacks/week/${state.currentWeek}`)
+      dispatch({ type: 'SET_FEEDBACKS', payload: fresh })
+    } catch {
+      dispatch({ type: 'ADD_FEEDBACK', payload: record })
+    }
     setShowForm(false)
     setFormEmployee('')
     setScores({ proatividade: 0, trabalhoEquipe: 0, comunicacao: 0, qualidade: 0, pontualidade: 0 })
