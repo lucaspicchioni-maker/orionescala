@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Bell, CheckCircle, XCircle, Clock, AlertTriangle, RefreshCw, Users, Loader2 } from 'lucide-react'
+import { Bell, CheckCircle, XCircle, Clock, RefreshCw, Users, Loader2 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { MetricCard } from '@/components/ui/MetricCard'

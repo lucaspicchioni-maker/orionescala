@@ -1,4 +1,4 @@
-import type { Employee, PontoRecord } from '@/types'
+import type { Employee } from '@/types'
 import type { WeekSchedule } from '@/store/AppContext'
 import type { Shift } from '@/types'
 

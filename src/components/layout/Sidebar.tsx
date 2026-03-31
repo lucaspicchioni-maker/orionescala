@@ -281,7 +281,7 @@ export function Sidebar() {
         {/* Nav with groups */}
         <nav className="flex-1 overflow-y-auto px-3">
           <div className="space-y-0.5">
-            {entries.map((entry, i) =>
+            {entries.map((entry) =>
               isGroup(entry) ? (
                 <NavGroupItem key={entry.label} group={entry} onNavigate={closeMobile} />
               ) : (
