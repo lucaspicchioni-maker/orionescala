@@ -27,6 +27,7 @@ import {
   Settings2,
   Bell,
   FileText,
+  KeyRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
@@ -68,6 +69,7 @@ const navByRole: Record<UserRole, NavEntry[]> = {
         { label: 'Regras', icon: Shield, to: '/regras' },
         { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
         { label: 'Recibo', icon: FileText, to: '/recibo' },
+        { label: 'Usuarios', icon: KeyRound, to: '/usuarios' },
       ],
     },
     {

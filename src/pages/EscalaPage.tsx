@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import { week1Data } from '@/data/dph'
+import { api, hasToken } from '@/lib/api'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
 import type { Employee } from '@/types'
@@ -188,12 +189,54 @@ export default function EscalaPage() {
   }, [state.schedules, weekStart])
 
   const persistSchedule = useCallback(
-    (updated: WeekSchedule) => {
+    async (updated: WeekSchedule) => {
       dispatch({ type: 'SET_SCHEDULE', payload: updated })
+      if (!hasToken()) return
+      setIsSaving(true)
+      try {
+        const saved = await api.put<WeekSchedule>(`/api/schedules/${updated.weekStart}`, updated)
+        dispatch({ type: 'SET_SCHEDULE', payload: saved })
+      } catch {
+        // silently ignore — local state already updated
+      } finally {
+        setIsSaving(false)
+      }
     },
     [dispatch],
   )
 
+  const copyFromPreviousWeek = useCallback(() => {
+    const prevDate = new Date(weekStart + 'T00:00:00')
+    prevDate.setDate(prevDate.getDate() - 7)
+    const prevWeekStart = prevDate.toISOString().split('T')[0]
+    const prevSchedule = state.schedules.find(s => s.weekStart === prevWeekStart)
+
+    const dates = getWeekDates(weekStart)
+    const newSchedule: WeekSchedule = {
+      weekStart,
+      published: false,
+      publishedAt: null,
+      days: DAY_KEYS.map((dayKey, i) => {
+        const source = prevSchedule
+          ? prevSchedule.days.find(d => d.dayOfWeek === dayKey)
+          : null
+        const fallback = week1Data.find(d => d.day === dayKey)
+        const slots = source
+          ? source.slots.map(s => ({ ...s, assignments: [], id: crypto.randomUUID() }))
+          : (fallback?.hours ?? []).map((h, hi) => ({
+              hour: h.hour,
+              requiredPeople: h.people,
+              assignments: [],
+            }))
+        return { date: dates[i], dayOfWeek: dayKey, slots }
+      }),
+    }
+    persistSchedule(newSchedule)
+    toast('success', prevSchedule ? 'Estrutura da semana anterior copiada!' : 'Nova escala criada com dados base.')
+  }, [weekStart, state.schedules, persistSchedule, toast])
+
+  const [isSaving, setIsSaving] = useState(false)
+  const [editingDemand, setEditingDemand] = useState(false)
   const [selectedDayIndex, setSelectedDayIndex] = useState(0)
   const [assignModalSlot, setAssignModalSlot] = useState<{
     dayIndex: number
@@ -319,7 +362,7 @@ export default function EscalaPage() {
         status: 'pending',
         confirmedAt: null,
       })
-      persistSchedule(updated)
+      void persistSchedule(updated)
       setAssignModalSlot(null)
     },
     [schedule, persistSchedule],
@@ -330,8 +373,18 @@ export default function EscalaPage() {
       const updated: WeekSchedule = JSON.parse(JSON.stringify(schedule))
       const slot = updated.days[dayIndex].slots[slotIndex]
       slot.assignments = slot.assignments.filter((a) => a.id !== assignmentId)
-      persistSchedule(updated)
+      void persistSchedule(updated)
       setConfirmRemove(null)
+    },
+    [schedule, persistSchedule],
+  )
+
+  const updateRequiredPeople = useCallback(
+    (dayIndex: number, slotIndex: number, delta: number) => {
+      const updated: WeekSchedule = JSON.parse(JSON.stringify(schedule))
+      const slot = updated.days[dayIndex].slots[slotIndex]
+      slot.requiredPeople = Math.max(0, slot.requiredPeople + delta)
+      void persistSchedule(updated)
     },
     [schedule, persistSchedule],
   )
@@ -360,34 +413,38 @@ export default function EscalaPage() {
     [schedule, removeAssignment],
   )
 
-  const publishSchedule = useCallback(() => {
-    const updated: WeekSchedule = JSON.parse(JSON.stringify(schedule))
-    updated.published = true
-    updated.publishedAt = new Date().toISOString()
-    persistSchedule(updated)
+  const publishSchedule = useCallback(async () => {
+    setIsSaving(true)
+    try {
+      // Save latest state first, then publish
+      if (hasToken()) {
+        await api.put<WeekSchedule>(`/api/schedules/${weekStart}`, schedule)
+        const published = await api.post<WeekSchedule>(`/api/schedules/${weekStart}/publish`, {})
+        dispatch({ type: 'SET_SCHEDULE', payload: published })
+      } else {
+        const updated: WeekSchedule = JSON.parse(JSON.stringify(schedule))
+        updated.published = true
+        updated.publishedAt = new Date().toISOString()
+        dispatch({ type: 'SET_SCHEDULE', payload: updated })
+      }
 
-    // Generate notifications for all assigned employees
-    const nameMap: Record<string, string> = {}
-    for (const emp of employees) {
-      nameMap[emp.id] = emp.nickname || emp.name
+      // Local notifications
+      const nameMap: Record<string, string> = {}
+      for (const emp of employees) nameMap[emp.id] = emp.nickname || emp.name
+      const notifications = generateNotificationsForSchedule(schedule, nameMap)
+      if (notifications.length > 0) dispatch({ type: 'ADD_NOTIFICATIONS', payload: notifications })
+
+      const convocated = new Set<string>()
+      schedule.days.forEach(day => day.slots.forEach(slot => slot.assignments.forEach(a => convocated.add(a.employeeId))))
+      toast('success', `Escala publicada! ${convocated.size} colaborador${convocated.size === 1 ? '' : 'es'} convocado${convocated.size === 1 ? '' : 's'}.`)
+      setShowPublishModal(false)
+      setShowNotifyPanel(true)
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Erro ao publicar escala')
+    } finally {
+      setIsSaving(false)
     }
-    const notifications = generateNotificationsForSchedule(updated, nameMap)
-    if (notifications.length > 0) {
-      dispatch({ type: 'ADD_NOTIFICATIONS', payload: notifications })
-    }
-
-    // Count unique convocations (unique employees assigned)
-    const convocated = new Set<string>()
-    updated.days.forEach((day) =>
-      day.slots.forEach((slot) =>
-        slot.assignments.forEach((a) => convocated.add(a.employeeId)),
-      ),
-    )
-    toast('success', `Escala publicada com sucesso! ${convocated.size} colaborador${convocated.size === 1 ? '' : 'es'} convocado${convocated.size === 1 ? '' : 's'}.`)
-
-    setShowPublishModal(false)
-    setShowNotifyPanel(true)
-  }, [schedule, persistSchedule, employees, dispatch, toast])
+  }, [schedule, weekStart, employees, dispatch, toast])
 
   const buildWhatsAppLink = useCallback(
     (emp: Employee) => {
@@ -461,7 +518,33 @@ export default function EscalaPage() {
             Gerencie a escala de trabalho semanal
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Copy previous week */}
+          {!schedule.published && (
+            <button
+              onClick={copyFromPreviousWeek}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Copiar estrutura da semana anterior"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              Copiar sem. ant.
+            </button>
+          )}
+          {/* Edit demand toggle — gerente/admin only */}
+          {!schedule.published && (
+            <button
+              onClick={() => setEditingDemand(v => !v)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors',
+                editingDemand
+                  ? 'border-accent/50 bg-accent/10 text-accent'
+                  : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
+            >
+              <Users className="h-3.5 w-3.5" />
+              {editingDemand ? 'Editando Demanda' : 'Editar Demanda'}
+            </button>
+          )}
           <button
             onClick={aiOpen && aiSuggestions ? () => setAiOpen(v => !v) : analyzeWithAI}
             disabled={aiLoading}
@@ -472,20 +555,21 @@ export default function EscalaPage() {
             {aiOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
           <Badge variant={statusVariant as 'default' | 'success' | 'warning'} size="md">
-            {statusLabel}
+            {isSaving ? 'Salvando...' : statusLabel}
           </Badge>
           <button
-            disabled={!allSlotsFilled || schedule.published}
+            disabled={!allSlotsFilled || schedule.published || isSaving}
             onClick={() => setShowPublishModal(true)}
             className={cn(
-              'flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors',
+              'flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors',
               allSlotsFilled && !schedule.published
                 ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                 : 'cursor-not-allowed bg-primary/20 text-primary/50',
             )}
           >
             <Send className="h-4 w-4" />
-            Publicar Escala
+            <span className="hidden sm:inline">Publicar Escala</span>
+            <span className="sm:hidden">Publicar</span>
           </button>
         </div>
       </div>
@@ -548,6 +632,21 @@ export default function EscalaPage() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* ─── Empty state nudge ─────────────────────────────────── */}
+      {!state.schedules.find(s => s.weekStart === weekStart) && (
+        <div className="rounded-xl border border-dashed border-border bg-card/50 p-5 text-center">
+          <Calendar className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
+          <p className="text-sm font-medium text-foreground">Nenhuma escala para esta semana</p>
+          <p className="mt-1 text-xs text-muted-foreground">Copie a estrutura da semana anterior ou edite a demanda para começar.</p>
+          <button
+            onClick={copyFromPreviousWeek}
+            className="mt-3 rounded-lg bg-primary/10 px-4 py-2 text-xs font-semibold text-primary hover:bg-primary/20"
+          >
+            Copiar semana anterior
+          </button>
         </div>
       )}
 
@@ -629,9 +728,23 @@ export default function EscalaPage() {
                     </span>
 
                     {/* Required count */}
-                    <span className="text-center text-xs font-bold text-foreground">
-                      {slot.requiredPeople}
-                    </span>
+                    {editingDemand && !schedule.published ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => updateRequiredPeople(selectedDayIndex, slotIdx, -1)}
+                          className="flex h-5 w-5 items-center justify-center rounded bg-muted text-muted-foreground hover:bg-destructive/20 hover:text-destructive text-xs font-bold"
+                        >−</button>
+                        <span className="w-4 text-center text-xs font-bold text-accent">{slot.requiredPeople}</span>
+                        <button
+                          onClick={() => updateRequiredPeople(selectedDayIndex, slotIdx, 1)}
+                          className="flex h-5 w-5 items-center justify-center rounded bg-muted text-muted-foreground hover:bg-success/20 hover:text-success text-xs font-bold"
+                        >+</button>
+                      </div>
+                    ) : (
+                      <span className="text-center text-xs font-bold text-foreground">
+                        {slot.requiredPeople}
+                      </span>
+                    )}
 
                     {/* Assignment slots */}
                     <div className="flex flex-wrap gap-2">
@@ -1032,10 +1145,11 @@ export default function EscalaPage() {
               Cancelar
             </button>
             <button
-              onClick={publishSchedule}
-              className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              onClick={() => void publishSchedule()}
+              disabled={isSaving}
+              className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
-              Confirmar e Notificar
+              {isSaving ? 'Publicando...' : 'Confirmar e Notificar'}
             </button>
           </div>
         </div>

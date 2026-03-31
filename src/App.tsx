@@ -37,6 +37,7 @@ import WhatsAppPage from '@/pages/WhatsAppPage'
 import ConfirmarPage from '@/pages/ConfirmarPage'
 import ReciboPagamentoPage from '@/pages/ReciboPagamentoPage'
 import ConvocacoesPage from '@/pages/ConvocacoesPage'
+import UsuariosPage from '@/pages/UsuariosPage'
 
 const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/': ['admin', 'gerente', 'supervisor', 'rh', 'colaborador'],
@@ -51,6 +52,7 @@ const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/produtividade': ['admin', 'gerente', 'supervisor'],
   '/feedback': ['admin', 'gerente', 'supervisor'],
   '/convocacoes': ['admin', 'gerente', 'supervisor'],
+  '/usuarios': ['admin'],
   '/dashboard-ao-vivo': ['admin', 'gerente'],
   '/custos': ['admin', 'gerente', 'rh'],
   '/dimensionamento': ['admin', 'gerente', 'rh'],
@@ -158,6 +160,7 @@ function AppRoutes() {
           <Route path="/whatsapp" element={<RoleGuard path="/whatsapp"><WhatsAppPage /></RoleGuard>} />
           <Route path="/recibo" element={<RoleGuard path="/recibo"><ReciboPagamentoPage /></RoleGuard>} />
           <Route path="/convocacoes" element={<RoleGuard path="/convocacoes"><ConvocacoesPage /></RoleGuard>} />
+          <Route path="/usuarios" element={<RoleGuard path="/usuarios"><UsuariosPage /></RoleGuard>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

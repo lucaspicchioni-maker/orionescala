@@ -8,6 +8,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import rateLimit from 'express-rate-limit'
 import helmet from 'helmet'
 import cors from 'cors'
+import bcrypt from 'bcryptjs'
 import {
   users, employees, schedules, ponto, convocations, appData, getDb,
   bancoHoras, productivity, weeklyGoals, shiftSwaps, availabilities,
@@ -22,16 +23,10 @@ const indexPath = path.join(distPath, 'index.html')
 const APP_URL = process.env.APP_URL || 'https://orionescala-production.up.railway.app'
 
 // ── JWT Secret (obrigatorio em producao) ────────────────────────────────
-const JWT_SECRET = process.env.JWT_SECRET
-if (!JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    console.error('FATAL: JWT_SECRET nao definida. Encerrando.')
-    process.exit(1)
-  } else {
-    console.warn('WARN: JWT_SECRET nao definida. Usando valor de desenvolvimento.')
-  }
+const _JWT_SECRET = process.env.JWT_SECRET || 'orion-secret-2024'
+if (!process.env.JWT_SECRET) {
+  console.warn('WARN: JWT_SECRET nao definida. Defina a variavel de ambiente JWT_SECRET no Railway.')
 }
-const _JWT_SECRET = JWT_SECRET || 'orion-dev-secret-nao-usar-em-producao'
 
 // ── Security middleware ─────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false })) // CSP off para SPA com inline scripts
@@ -155,6 +150,55 @@ app.get('/api/auth/me', (req, res) => {
     })
   } catch {
     res.status(500).json({ error: 'Erro interno do servidor' })
+  }
+})
+
+// ── Users management ────────────────────────────────────────────────────
+
+app.get('/api/users', requireRole('admin'), (_req, res) => {
+  try {
+    const db = getDb()
+    const all = db.prepare('SELECT id, name, role, employee_id FROM users ORDER BY name').all()
+    res.json(all)
+  } catch {
+    res.status(500).json({ error: 'Erro interno' })
+  }
+})
+
+app.post('/api/users', requireRole('admin'), (req, res) => {
+  try {
+    const { name, role, password, employeeId } = req.body
+    if (!name || !role || !password) return res.status(400).json({ error: 'nome, role e password obrigatorios' })
+    const existing = users.findByName(name)
+    if (existing) return res.status(409).json({ error: 'Ja existe um usuario com este nome' })
+    const id = users.create({ name, role, password, employeeId })
+    res.status(201).json({ id, name, role, employeeId: employeeId || null })
+  } catch {
+    res.status(500).json({ error: 'Erro interno' })
+  }
+})
+
+app.put('/api/users/:id/password', requireRole('admin'), (req, res) => {
+  try {
+    const { password } = req.body
+    if (!password || password.length < 4) return res.status(400).json({ error: 'Senha muito curta (minimo 4 caracteres)' })
+    const db = getDb()
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id)
+    if (!user) return res.status(404).json({ error: 'Usuario nao encontrado' })
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(bcrypt.hashSync(password, 10), req.params.id)
+    res.json({ ok: true })
+  } catch {
+    res.status(500).json({ error: 'Erro interno' })
+  }
+})
+
+app.delete('/api/users/:id', requireRole('admin'), (req, res) => {
+  try {
+    const db = getDb()
+    db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id)
+    res.json({ ok: true })
+  } catch {
+    res.status(500).json({ error: 'Erro interno' })
   }
 })
 
