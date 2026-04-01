@@ -15,6 +15,11 @@ dist-ssr
 .env.local
 .env.*.local
 
+# SQLite database files (data is ephemeral on Railway)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

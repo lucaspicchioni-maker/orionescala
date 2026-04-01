@@ -345,6 +345,29 @@ if (userCount.c === 0) {
   console.log('✅ Usuários padrão criados')
 }
 
+// ── Seed colaboradores if none exist ────────────────────────────────────────
+
+const empCount = db.prepare('SELECT COUNT(*) as c FROM employees').get()
+if (empCount.c === 0) {
+  try {
+    const seedPath = path.join(__dirname, 'data', 'seed-colaboradores.json')
+    const colaboradores = JSON.parse(fs.readFileSync(seedPath, 'utf-8'))
+    const insertEmp = db.prepare(`
+      INSERT INTO employees (id, name, role, contract_type, hourly_rate, status)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `)
+    const insertMany = db.transaction((list) => {
+      for (const c of list) {
+        insertEmp.run(randomUUID(), c.name, c.role, c.contract_type, c.hourly_rate, c.status)
+      }
+    })
+    insertMany(colaboradores)
+    console.log(`✅ ${colaboradores.length} colaboradores inseridos do seed`)
+  } catch (err) {
+    console.error('⚠️  Falha ao carregar seed de colaboradores:', err.message)
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 export function getDb() { return db }
