@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Calendar,
   DollarSign,
@@ -42,6 +42,12 @@ export default function MinhaAreaPage() {
   const { state, dispatch } = useApp()
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('')
   const [weekOffset, setWeekOffset] = useState(0)
+  const isColaborador = state.currentUser.role === 'colaborador'
+
+  useEffect(() => {
+    const stored = localStorage.getItem('orion_logged_employee')
+    if (stored && isColaborador) setSelectedEmployeeId(stored)
+  }, [isColaborador])
 
   const weekStart = useMemo(() => getWeekStart(weekOffset), [weekOffset])
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart])
@@ -239,19 +245,21 @@ export default function MinhaAreaPage() {
         <p className="text-sm text-muted-foreground">Escala, ganhos e desempenho</p>
       </div>
 
-      {/* Employee selector */}
-      <select
-        value={selectedEmployeeId}
-        onChange={(e) => setSelectedEmployeeId(e.target.value)}
-        className="w-full rounded-xl border border-border bg-card px-4 py-3 text-lg font-medium text-foreground"
-      >
-        <option value="">Selecione seu nome...</option>
-        {activeEmployees.map((emp) => (
-          <option key={emp.id} value={emp.id}>
-            {emp.nickname || emp.name}
-          </option>
-        ))}
-      </select>
+      {/* Employee selector — oculto para colaborador logado */}
+      {!isColaborador && (
+        <select
+          value={selectedEmployeeId}
+          onChange={(e) => setSelectedEmployeeId(e.target.value)}
+          className="w-full rounded-xl border border-border bg-card px-4 py-3 text-lg font-medium text-foreground"
+        >
+          <option value="">Selecione seu nome...</option>
+          {activeEmployees.map((emp) => (
+            <option key={emp.id} value={emp.id}>
+              {emp.nickname || emp.name}
+            </option>
+          ))}
+        </select>
+      )}
 
       {employee && (
         <>

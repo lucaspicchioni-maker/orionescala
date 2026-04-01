@@ -7,7 +7,11 @@ import {
   Trash2,
   User,
   MessageCircle,
+  KeyRound,
+  Loader2,
 } from 'lucide-react'
+import { api } from '@/lib/api'
+import { useToast } from '@/components/ui/Toast'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
@@ -129,6 +133,10 @@ export default function ColaboradoresPage() {
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null)
+  const [loginTarget, setLoginTarget] = useState<Employee | null>(null)
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginSubmitting, setLoginSubmitting] = useState(false)
+  const { toast } = useToast()
 
   // ── Filtering ───────────────────────────────────────────────────────
 
@@ -246,6 +254,26 @@ export default function ColaboradoresPage() {
   function openWhatsApp(phone: string) {
     const clean = phone.replace(/\D/g, '')
     window.open(`https://wa.me/${clean}`, '_blank')
+  }
+
+  async function createLogin() {
+    if (!loginTarget || loginPassword.length < 4) return
+    setLoginSubmitting(true)
+    try {
+      await api.post('/api/users', {
+        name: loginTarget.nickname || loginTarget.name,
+        role: 'colaborador',
+        password: loginPassword,
+        employeeId: loginTarget.id,
+      })
+      toast('success', `Login criado para ${loginTarget.nickname || loginTarget.name}`)
+      setLoginTarget(null)
+      setLoginPassword('')
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Erro ao criar login')
+    } finally {
+      setLoginSubmitting(false)
+    }
   }
 
   function updateField<K extends keyof EmployeeForm>(
@@ -366,6 +394,14 @@ export default function ColaboradoresPage() {
 
               {/* Action buttons */}
               <div className="flex items-center gap-2 border-t border-border pt-3">
+                <button
+                  onClick={() => { setLoginTarget(e); setLoginPassword('') }}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                  title="Criar login para o colaborador"
+                >
+                  <KeyRound className="h-3.5 w-3.5" />
+                  Login
+                </button>
                 <button
                   onClick={() => openEdit(e)}
                   className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -701,6 +737,51 @@ export default function ColaboradoresPage() {
               Salvar
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* ── Login Modal ─────────────────────────────────────────────── */}
+      <Modal isOpen={!!loginTarget} onClose={() => { setLoginTarget(null); setLoginPassword('') }}>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5 text-primary" />
+            <h3 className="text-base font-bold text-foreground">Criar Login</h3>
+          </div>
+          {loginTarget && (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Login: <span className="font-semibold text-foreground">{loginTarget.nickname || loginTarget.name}</span>
+                <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[11px]">colaborador</span>
+              </p>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Senha inicial</label>
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && void createLogin()}
+                  placeholder="Minimo 4 caracteres"
+                  autoFocus
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setLoginTarget(null); setLoginPassword('') }}
+                  className="flex-1 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/80"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => void createLogin()}
+                  disabled={loginPassword.length < 4 || loginSubmitting}
+                  className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {loginSubmitting ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : 'Criar Login'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </Modal>
 
