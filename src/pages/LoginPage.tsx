@@ -37,7 +37,7 @@ export default function LoginPage() {
 
       dispatch({
         type: 'SET_CURRENT_USER',
-        payload: { name: data.user.name, role: data.user.role, employeeId: data.user.employeeId },
+        payload: { name: data.user.name, role: data.user.role, employeeId: data.user.employeeId ?? undefined },
       })
 
       if (data.user.employeeId) {
