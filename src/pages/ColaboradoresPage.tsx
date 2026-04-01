@@ -181,7 +181,7 @@ export default function ColaboradoresPage() {
     setModalOpen(true)
   }
 
-  function handleSave() {
+  async function handleSave() {
     const hourlyRate = parseFloat(form.hourlyRate) || 0
     const monthlyCost = parseFloat(form.monthlyCost) || 0
 
@@ -202,53 +202,40 @@ export default function ColaboradoresPage() {
       notes: form.notes.trim() || undefined,
     }
 
-    if (editingId) {
-      dispatch({
-        type: 'UPDATE_EMPLOYEE',
-        payload: {
-          id: editingId,
-          name: form.name.trim(),
-          nickname: form.nickname.trim() || form.name.trim(),
-          phone: form.phone.trim(),
-          role: form.role,
-          status: form.status,
-          hourlyRate,
-          monthlyCost,
-          ...extraFields,
-        },
-      })
-    } else {
-      const id = form.name
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '') +
-        '-' +
-        Date.now().toString(36)
-
-      dispatch({
-        type: 'ADD_EMPLOYEE',
-        payload: {
-          id,
-          name: form.name.trim(),
-          nickname: form.nickname.trim() || form.name.trim(),
-          phone: form.phone.trim(),
-          role: form.role,
-          status: form.status,
-          hourlyRate,
-          monthlyCost,
-          ...extraFields,
-        },
-      })
+    const payload = {
+      name: form.name.trim(),
+      nickname: form.nickname.trim() || form.name.trim(),
+      phone: form.phone.trim(),
+      role: form.role,
+      status: form.status,
+      hourlyRate,
+      monthlyCost,
+      ...extraFields,
     }
 
-    setModalOpen(false)
+    try {
+      if (editingId) {
+        const updated = await api.put<Employee>(`/api/employees/${editingId}`, payload)
+        dispatch({ type: 'UPDATE_EMPLOYEE', payload: updated })
+      } else {
+        const created = await api.post<Employee>('/api/employees', payload)
+        dispatch({ type: 'ADD_EMPLOYEE', payload: created })
+      }
+      setModalOpen(false)
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Erro ao salvar colaborador')
+    }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!deleteTarget) return
-    dispatch({ type: 'DELETE_EMPLOYEE', payload: deleteTarget.id })
-    setDeleteTarget(null)
+    try {
+      await api.del(`/api/employees/${deleteTarget.id}`)
+      dispatch({ type: 'DELETE_EMPLOYEE', payload: deleteTarget.id })
+      setDeleteTarget(null)
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Erro ao excluir colaborador')
+    }
   }
 
   function openWhatsApp(phone: string) {
@@ -730,7 +717,7 @@ export default function ColaboradoresPage() {
               Cancelar
             </button>
             <button
-              onClick={handleSave}
+              onClick={() => void handleSave()}
               disabled={!form.name.trim()}
               className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
             >
@@ -808,7 +795,7 @@ export default function ColaboradoresPage() {
               Cancelar
             </button>
             <button
-              onClick={handleDelete}
+              onClick={() => void handleDelete()}
               className="rounded-lg bg-destructive px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-destructive/90"
             >
               <span className="inline-flex items-center gap-2">
