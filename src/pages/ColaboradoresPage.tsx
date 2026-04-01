@@ -741,7 +741,7 @@ export default function ColaboradoresPage() {
       </Modal>
 
       {/* ── Login Modal ─────────────────────────────────────────────── */}
-      <Modal isOpen={!!loginTarget} onClose={() => { setLoginTarget(null); setLoginPassword('') }}>
+      <Modal isOpen={!!loginTarget} onClose={() => { setLoginTarget(null); setLoginPassword('') }} title="Criar Login">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <KeyRound className="h-5 w-5 text-primary" />
