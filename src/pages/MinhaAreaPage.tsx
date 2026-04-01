@@ -45,9 +45,9 @@ export default function MinhaAreaPage() {
   const isColaborador = state.currentUser.role === 'colaborador'
 
   useEffect(() => {
-    const stored = localStorage.getItem('orion_logged_employee')
-    if (stored && isColaborador) setSelectedEmployeeId(stored)
-  }, [isColaborador])
+    const empId = state.currentUser.employeeId
+    if (empId && isColaborador) setSelectedEmployeeId(empId)
+  }, [isColaborador, state.currentUser.employeeId])
 
   const weekStart = useMemo(() => getWeekStart(weekOffset), [weekOffset])
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart])

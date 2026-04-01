@@ -56,6 +56,15 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 })
 
+const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 30,
+  message: { error: 'Limite de requisicoes AI atingido. Tente novamente em 1 hora.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.id || req.ip,
+})
+
 // ── Auth Middleware ─────────────────────────────────────────────────────
 
 const PUBLIC_PATHS = [
@@ -204,7 +213,7 @@ app.delete('/api/users/:id', requireRole('admin'), (req, res) => {
 
 // ── Employees CRUD ──────────────────────────────────────────────────────
 
-app.get('/api/employees', (_req, res) => {
+app.get('/api/employees', requireRole('admin', 'gerente', 'supervisor', 'rh'), (_req, res) => {
   try {
     const all = employees.getAll().map(employees.toFrontend)
     res.json(all)
@@ -215,6 +224,11 @@ app.get('/api/employees', (_req, res) => {
 
 app.post('/api/employees', requireRole('admin', 'gerente', 'rh'), (req, res) => {
   try {
+    const { name, role, status, hourlyRate } = req.body
+    if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'nome obrigatorio' })
+    const validRoles = ['auxiliar', 'lider', 'supervisor', 'gerente']
+    if (role && !validRoles.includes(role)) return res.status(400).json({ error: 'role invalido' })
+    if (hourlyRate !== undefined && (isNaN(Number(hourlyRate)) || Number(hourlyRate) < 0)) return res.status(400).json({ error: 'hourlyRate invalido' })
     const id = employees.create(req.body)
     const emp = employees.getById(id)
     res.json(employees.toFrontend(emp))
@@ -245,7 +259,7 @@ app.delete('/api/employees/:id', requireRole('admin', 'gerente'), (req, res) => 
 
 // ── Schedules ───────────────────────────────────────────────────────────
 
-app.get('/api/schedules', (_req, res) => {
+app.get('/api/schedules', requireRole('admin', 'gerente', 'supervisor', 'rh'), (_req, res) => {
   try {
     const all = schedules.getAll()
     res.json(all)
@@ -401,7 +415,7 @@ app.post('/api/schedules/:weekStart/publish', requireRole('admin', 'gerente'), (
 
 // ── Ponto ───────────────────────────────────────────────────────────────
 
-app.get('/api/ponto', (_req, res) => {
+app.get('/api/ponto', requireRole('admin', 'gerente', 'supervisor', 'rh'), (_req, res) => {
   try {
     res.json(ponto.getAll())
   } catch {
@@ -411,8 +425,12 @@ app.get('/api/ponto', (_req, res) => {
 
 app.post('/api/ponto', (req, res) => {
   try {
-    // Colaborador só pode registrar o próprio ponto
-    if (req.user.role === 'colaborador' && req.user.employeeId !== req.body.employeeId) {
+    const { employeeId, date, status } = req.body
+    if (!employeeId || !date || !status) return res.status(400).json({ error: 'employeeId, date e status obrigatorios' })
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'date formato invalido (YYYY-MM-DD)' })
+    const validStatuses = ['on_time', 'late', 'absent', 'extra']
+    if (!validStatuses.includes(status)) return res.status(400).json({ error: 'status invalido' })
+    if (req.user.role === 'colaborador' && req.user.employeeId !== employeeId) {
       return res.status(403).json({ error: 'Acesso negado' })
     }
     const record = { ...req.body, id: req.body.id || randomUUID() }
@@ -599,7 +617,7 @@ const anthropic = process.env.ANTHROPIC_API_KEY
   : null
 
 if (anthropic) {
-  app.post('/api/ai/rh-insights', async (req, res) => {
+  app.post('/api/ai/rh-insights', aiLimiter, async (req, res) => {
     try {
       const { employees: empData, pontoStats, topAbsentees, employeeNames } = req.body
       const response = await anthropic.messages.create({
@@ -635,7 +653,7 @@ Retorne APENAS JSON valido:
     }
   })
 
-  app.post('/api/ai/schedule-suggest', async (req, res) => {
+  app.post('/api/ai/schedule-suggest', aiLimiter, async (req, res) => {
     try {
       const { schedule, employees: emps, weekStart } = req.body
       const slotSummary = schedule?.days?.map(day => {
@@ -676,7 +694,7 @@ Retorne APENAS JSON valido:
     }
   })
 
-  app.post('/api/ai/absence-risk', async (req, res) => {
+  app.post('/api/ai/absence-risk', aiLimiter, async (req, res) => {
     try {
       const { employee, baseScore, baseReasons, upcomingShifts } = req.body
       const response = await anthropic.messages.create({
@@ -706,7 +724,7 @@ Retorne APENAS JSON valido:
     }
   })
 
-  app.post('/api/ai/whatsapp-message', async (req, res) => {
+  app.post('/api/ai/whatsapp-message', aiLimiter, async (req, res) => {
     try {
       const { type, employeeName, context } = req.body
       const typeInstructions = {
@@ -782,6 +800,14 @@ app.get('/api/productivity/employee/:id', (req, res) => {
 
 app.post('/api/productivity', (req, res) => {
   try {
+    const { weekStart, totalOrders, employeeId } = req.body
+    if (!weekStart || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+      return res.status(400).json({ error: 'weekStart invalido (YYYY-MM-DD)' })
+    }
+    if (totalOrders !== undefined && (typeof totalOrders !== 'number' || totalOrders < 0)) {
+      return res.status(400).json({ error: 'totalOrders deve ser numero >= 0' })
+    }
+    if (!employeeId) return res.status(400).json({ error: 'employeeId obrigatorio' })
     const id = productivity.upsert(req.body)
     res.json({ id })
   } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
@@ -819,6 +845,14 @@ app.get('/api/shift-swaps/employee/:id', (req, res) => {
 
 app.post('/api/shift-swaps', (req, res) => {
   try {
+    const { employeeId, requestedDate, reason } = req.body
+    if (!employeeId) return res.status(400).json({ error: 'employeeId obrigatorio' })
+    if (!requestedDate || !/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
+      return res.status(400).json({ error: 'requestedDate invalido (YYYY-MM-DD)' })
+    }
+    if (reason !== undefined && typeof reason !== 'string') {
+      return res.status(400).json({ error: 'reason deve ser string' })
+    }
     const id = shiftSwaps.create(req.body)
     res.json({ id })
   } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
@@ -873,6 +907,14 @@ app.get('/api/feedbacks/employee/:id', (req, res) => {
 
 app.post('/api/feedbacks', (req, res) => {
   try {
+    const { weekStart, employeeId, scores } = req.body
+    if (!weekStart || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+      return res.status(400).json({ error: 'weekStart invalido (YYYY-MM-DD)' })
+    }
+    if (!employeeId) return res.status(400).json({ error: 'employeeId obrigatorio' })
+    if (scores !== undefined && typeof scores !== 'object') {
+      return res.status(400).json({ error: 'scores deve ser objeto' })
+    }
     const id = feedbacks.upsert({ ...req.body, evaluatorId: req.user.id })
     res.json({ id })
   } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
@@ -888,6 +930,14 @@ app.get('/api/shift-feedbacks/week/:weekStart', (req, res) => {
 
 app.post('/api/shift-feedbacks', (req, res) => {
   try {
+    const { employeeId, weekStart, rating } = req.body
+    if (!employeeId) return res.status(400).json({ error: 'employeeId obrigatorio' })
+    if (!weekStart || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+      return res.status(400).json({ error: 'weekStart invalido (YYYY-MM-DD)' })
+    }
+    if (rating !== undefined && (typeof rating !== 'number' || rating < 1 || rating > 5)) {
+      return res.status(400).json({ error: 'rating deve ser numero entre 1 e 5' })
+    }
     const id = shiftFeedbacks.upsert(req.body)
     res.json({ id })
   } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }

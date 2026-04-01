@@ -82,7 +82,7 @@ function StarRating({
 
 export default function AvaliacaoTurnoPage() {
   const { state, dispatch } = useApp()
-  const loggedEmployeeId = localStorage.getItem('orion_logged_employee') || ''
+  const loggedEmployeeId = state.currentUser.employeeId || ''
   const today = getToday()
   const weekStart = getWeekStart()
 

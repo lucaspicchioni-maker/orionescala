@@ -7,7 +7,7 @@ import type { ShiftSwapRequest } from '@/types'
 export default function TrocaTurnoPage() {
   const { state, dispatch } = useApp()
   const role = state.currentUser.role
-  const loggedEmployeeId = localStorage.getItem('orion_logged_employee') || ''
+  const loggedEmployeeId = state.currentUser.employeeId || ''
   const [showNewRequest, setShowNewRequest] = useState(false)
 
   // Form state

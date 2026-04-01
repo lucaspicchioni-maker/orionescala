@@ -43,7 +43,7 @@ function formatWeekLabel(weekStart: string): string {
 
 export default function DisponibilidadePage() {
   const { state, dispatch } = useApp()
-  const loggedEmployeeId = localStorage.getItem('orion_logged_employee') || ''
+  const loggedEmployeeId = state.currentUser.employeeId || ''
   const loggedEmployee = state.employees.find(e => e.id === loggedEmployeeId)
 
   // Week navigation — default to next week

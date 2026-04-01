@@ -382,7 +382,7 @@ export default function RelatorioLayerPage() {
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Icon className="h-3.5 w-3.5" />
+            <Icon className="h-3.5 w-3.5 shrink-0" />
             {label}
           </button>
         ))}
@@ -841,18 +841,20 @@ function VerdictCard({ positives, negatives, violations, layer }: {
 
   return (
     <div className={`rounded-xl border-2 ${bg} p-4`}>
-      <div className="flex items-center gap-3">
-        {isGood ? <CheckCircle className={`h-6 w-6 ${color}`} /> : <AlertTriangle className={`h-6 w-6 ${color}`} />}
-        <div>
-          <h3 className={`font-bold ${color}`}>Veredito: {verdict}</h3>
-          <p className="text-xs text-muted-foreground">
-            {verdictMessages[layer]?.[verdict] || 'Analise os indicadores acima.'}
-          </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {isGood ? <CheckCircle className={`h-6 w-6 ${color} shrink-0`} /> : <AlertTriangle className={`h-6 w-6 ${color} shrink-0`} />}
+          <div className="min-w-0">
+            <h3 className={`font-bold ${color}`}>Veredito: {verdict}</h3>
+            <p className="text-xs text-muted-foreground">
+              {verdictMessages[layer]?.[verdict] || 'Analise os indicadores acima.'}
+            </p>
+          </div>
         </div>
-        <div className="ml-auto text-right text-xs text-muted-foreground">
-          <div><span className="text-success font-medium">{positives}</span> positivos</div>
-          <div><span className="text-destructive font-medium">{negatives}</span> negativos</div>
-          <div><span className="text-warning font-medium">{violations}</span> violacoes</div>
+        <div className="flex items-center gap-4 text-xs text-muted-foreground sm:ml-auto sm:flex-col sm:items-end sm:gap-0.5">
+          <span><span className="text-success font-medium">{positives}</span> positivos</span>
+          <span><span className="text-destructive font-medium">{negatives}</span> negativos</span>
+          <span><span className="text-warning font-medium">{violations}</span> violacoes</span>
         </div>
       </div>
     </div>

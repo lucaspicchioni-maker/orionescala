@@ -190,6 +190,7 @@ export default function EscalaPage() {
 
   const persistSchedule = useCallback(
     async (updated: WeekSchedule) => {
+      const previous = schedule
       dispatch({ type: 'SET_SCHEDULE', payload: updated })
       if (!hasToken()) return
       setIsSaving(true)
@@ -197,12 +198,13 @@ export default function EscalaPage() {
         const saved = await api.put<WeekSchedule>(`/api/schedules/${updated.weekStart}`, updated)
         dispatch({ type: 'SET_SCHEDULE', payload: saved })
       } catch {
-        // silently ignore — local state already updated
+        dispatch({ type: 'SET_SCHEDULE', payload: previous })
+        toast('error', 'Erro ao salvar escala. Alteracao revertida.')
       } finally {
         setIsSaving(false)
       }
     },
-    [dispatch],
+    [dispatch, schedule, toast],
   )
 
   const copyFromPreviousWeek = useCallback(() => {

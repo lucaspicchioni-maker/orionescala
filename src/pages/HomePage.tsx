@@ -46,7 +46,7 @@ export default function HomePage() {
   const today = getToday()
   const weekStart = getWeekStart()
 
-  const loggedEmployeeId = localStorage.getItem('orion_logged_employee') || ''
+  const loggedEmployeeId = currentUser.employeeId || ''
 
   // Today's schedule
   const todaySchedule = useMemo(() => {

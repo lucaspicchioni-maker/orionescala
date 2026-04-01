@@ -20,7 +20,7 @@ export default function HistoricoPresencaPage() {
   const activeEmployees = state.employees.filter(e => e.status === 'ativo')
 
   // For colaborador, auto-select self
-  const loggedEmployeeId = localStorage.getItem('orion_logged_employee') || ''
+  const loggedEmployeeId = state.currentUser.employeeId || ''
   const effectiveEmployee = role === 'colaborador' ? loggedEmployeeId : selectedEmployee
 
   const currentMonth = useMemo(() => {

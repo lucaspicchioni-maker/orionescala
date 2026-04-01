@@ -56,7 +56,7 @@ export interface AppState {
   theme: 'dark' | 'light'
   onboardingDone: boolean
   currentWeek: string
-  currentUser: { role: 'colaborador' | 'supervisor' | 'gerente' | 'rh' | 'admin'; name: string }
+  currentUser: { role: 'colaborador' | 'supervisor' | 'gerente' | 'rh' | 'admin'; name: string; employeeId?: string }
   loading: boolean
   apiReady: boolean
 }

@@ -103,6 +103,14 @@ export default function CheckInPage() {
   const [currentLocation, setCurrentLocation] = useState<GeoLocation | null>(null)
   const [distance, setDistance] = useState<number | null>(null)
 
+  // Auto-select self for colaborador role
+  useEffect(() => {
+    const empId = state.currentUser.employeeId
+    if (empId && state.currentUser.role === 'colaborador') {
+      setSelectedEmployeeId(empId)
+    }
+  }, [state.currentUser.employeeId, state.currentUser.role])
+
   const today = getToday()
   const locationConfig = state.locationConfig
   const locationConfigured = locationConfig.lat !== 0 && locationConfig.lng !== 0

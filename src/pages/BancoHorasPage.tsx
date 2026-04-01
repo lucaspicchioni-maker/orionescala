@@ -7,7 +7,7 @@ import type { BancoHorasEntry } from '@/types'
 export default function BancoHorasPage() {
   const { state, dispatch } = useApp()
   const role = state.currentUser.role
-  const loggedEmployeeId = localStorage.getItem('orion_logged_employee') || ''
+  const loggedEmployeeId = state.currentUser.employeeId || ''
   const [showAdjust, setShowAdjust] = useState(false)
   const [adjEmployee, setAdjEmployee] = useState('')
   const [adjMinutes, setAdjMinutes] = useState('')

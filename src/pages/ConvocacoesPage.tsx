@@ -147,7 +147,33 @@ export default function ConvocacoesPage() {
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             {formatDate(date)}
           </h3>
-          <div className="overflow-x-auto">
+
+          {/* Mobile: card list */}
+          <div className="space-y-2 sm:hidden">
+            {items.map(c => {
+              const cfg = STATUS_CONFIG[c.status] || { label: c.status, variant: 'muted' as const }
+              return (
+                <div key={c.id} className="rounded-lg border border-border/50 bg-card px-3 py-2.5 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-foreground truncate">{c.employeeName}</span>
+                    <Badge variant={cfg.variant} size="sm">{cfg.label}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{c.shiftStart} - {c.shiftEnd}</span>
+                    {c.noshowFine > 0 && <span className="text-destructive font-medium">R$ {c.noshowFine.toFixed(2)}</span>}
+                  </div>
+                  {c.deadline && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Prazo: {new Date(c.deadline).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
@@ -173,9 +199,7 @@ export default function ConvocacoesPage() {
                       </td>
                       <td className="px-2 py-2.5 text-right">
                         {c.noshowFine > 0 ? (
-                          <span className="text-destructive font-medium">
-                            R$ {c.noshowFine.toFixed(2)}
-                          </span>
+                          <span className="text-destructive font-medium">R$ {c.noshowFine.toFixed(2)}</span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}

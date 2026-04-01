@@ -33,7 +33,7 @@ function StarRating({ value, onChange, readonly }: { value: number; onChange?: (
 export default function FeedbackPage() {
   const { state, dispatch } = useApp()
   const role = state.currentUser.role
-  const loggedEmployeeId = localStorage.getItem('orion_logged_employee') || ''
+  const loggedEmployeeId = state.currentUser.employeeId || ''
   const [showForm, setShowForm] = useState(false)
   const [formEmployee, setFormEmployee] = useState('')
   const [scores, setScores] = useState({ proatividade: 0, trabalhoEquipe: 0, comunicacao: 0, qualidade: 0, pontualidade: 0 })

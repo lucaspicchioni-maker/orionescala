@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import type { UserRole } from '@/types'
@@ -6,38 +6,39 @@ import { AppShell } from '@/components/layout/AppShell'
 import { AppProvider, useApp } from '@/store/AppContext'
 import { Onboarding } from '@/components/Onboarding'
 import { ToastProvider, useToast } from '@/components/ui/Toast'
-import DPHPage from '@/pages/DPHPage'
-import EscalaPage from '@/pages/EscalaPage'
-import SaldoPage from '@/pages/SaldoPage'
-import ColaboradoresPage from '@/pages/ColaboradoresPage'
-import KPIsPage from '@/pages/KPIsPage'
-import RankingPage from '@/pages/RankingPage'
-import PontoPage from '@/pages/PontoPage'
-import CheckInPage from '@/pages/CheckInPage'
-import MinhaAreaPage from '@/pages/MinhaAreaPage'
-import ProdutividadePage from '@/pages/ProdutividadePage'
-import ConfiguracoesPage from '@/pages/ConfiguracoesPage'
 import LoginPage from '@/pages/LoginPage'
-import HomePage from '@/pages/HomePage'
-import RelatoriosPage from '@/pages/RelatoriosPage'
-import HistoricoPresencaPage from '@/pages/HistoricoPresencaPage'
-import TrocaTurnoPage from '@/pages/TrocaTurnoPage'
-import BancoHorasPage from '@/pages/BancoHorasPage'
-import FeedbackPage from '@/pages/FeedbackPage'
-import RegrasDeOuroPage from '@/pages/RegrasDeOuroPage'
-import DimensionamentoPage from '@/pages/DimensionamentoPage'
-import RHDashboardPage from '@/pages/RHDashboardPage'
-import RelatorioLayerPage from '@/pages/RelatorioLayerPage'
-import DisponibilidadePage from '@/pages/DisponibilidadePage'
-import DashboardAoVivoPage from '@/pages/DashboardAoVivoPage'
-import MuralPage from '@/pages/MuralPage'
-import CustosOperacionaisPage from '@/pages/CustosOperacionaisPage'
-import AvaliacaoTurnoPage from '@/pages/AvaliacaoTurnoPage'
-import WhatsAppPage from '@/pages/WhatsAppPage'
 import ConfirmarPage from '@/pages/ConfirmarPage'
-import ReciboPagamentoPage from '@/pages/ReciboPagamentoPage'
-import ConvocacoesPage from '@/pages/ConvocacoesPage'
-import UsuariosPage from '@/pages/UsuariosPage'
+
+const DPHPage = lazy(() => import('@/pages/DPHPage'))
+const EscalaPage = lazy(() => import('@/pages/EscalaPage'))
+const SaldoPage = lazy(() => import('@/pages/SaldoPage'))
+const ColaboradoresPage = lazy(() => import('@/pages/ColaboradoresPage'))
+const KPIsPage = lazy(() => import('@/pages/KPIsPage'))
+const RankingPage = lazy(() => import('@/pages/RankingPage'))
+const PontoPage = lazy(() => import('@/pages/PontoPage'))
+const CheckInPage = lazy(() => import('@/pages/CheckInPage'))
+const MinhaAreaPage = lazy(() => import('@/pages/MinhaAreaPage'))
+const ProdutividadePage = lazy(() => import('@/pages/ProdutividadePage'))
+const ConfiguracoesPage = lazy(() => import('@/pages/ConfiguracoesPage'))
+const HomePage = lazy(() => import('@/pages/HomePage'))
+const RelatoriosPage = lazy(() => import('@/pages/RelatoriosPage'))
+const HistoricoPresencaPage = lazy(() => import('@/pages/HistoricoPresencaPage'))
+const TrocaTurnoPage = lazy(() => import('@/pages/TrocaTurnoPage'))
+const BancoHorasPage = lazy(() => import('@/pages/BancoHorasPage'))
+const FeedbackPage = lazy(() => import('@/pages/FeedbackPage'))
+const RegrasDeOuroPage = lazy(() => import('@/pages/RegrasDeOuroPage'))
+const DimensionamentoPage = lazy(() => import('@/pages/DimensionamentoPage'))
+const RHDashboardPage = lazy(() => import('@/pages/RHDashboardPage'))
+const RelatorioLayerPage = lazy(() => import('@/pages/RelatorioLayerPage'))
+const DisponibilidadePage = lazy(() => import('@/pages/DisponibilidadePage'))
+const DashboardAoVivoPage = lazy(() => import('@/pages/DashboardAoVivoPage'))
+const MuralPage = lazy(() => import('@/pages/MuralPage'))
+const CustosOperacionaisPage = lazy(() => import('@/pages/CustosOperacionaisPage'))
+const AvaliacaoTurnoPage = lazy(() => import('@/pages/AvaliacaoTurnoPage'))
+const WhatsAppPage = lazy(() => import('@/pages/WhatsAppPage'))
+const ReciboPagamentoPage = lazy(() => import('@/pages/ReciboPagamentoPage'))
+const ConvocacoesPage = lazy(() => import('@/pages/ConvocacoesPage'))
+const UsuariosPage = lazy(() => import('@/pages/UsuariosPage'))
 
 const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/': ['admin', 'gerente', 'supervisor', 'rh', 'colaborador'],
@@ -84,7 +85,7 @@ function UrgentAnnouncementWatcher() {
     if (!state.apiReady || prevApiReady.current) return
     prevApiReady.current = true
 
-    const loggedEmployeeId = localStorage.getItem('orion_logged_employee') || ''
+    const loggedEmployeeId = state.currentUser.employeeId || ''
     const urgent = state.announcements.filter(
       (a) => a.priority === 'urgent' && !a.readBy.includes(loggedEmployeeId),
     )
@@ -126,6 +127,7 @@ function AppRoutes() {
     <>
       <UrgentAnnouncementWatcher />
       <Onboarding />
+      <Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>}>
       <Routes>
         {/* Public page — no AppShell */}
         <Route path="/confirmar" element={<ConfirmarPage />} />
@@ -164,6 +166,7 @@ function AppRoutes() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      </Suspense>
     </>
   )
 }

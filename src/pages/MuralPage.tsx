@@ -21,7 +21,7 @@ const CAN_CREATE_ROLES = ['gerente', 'admin', 'supervisor']
 export default function MuralPage() {
   const { state, dispatch } = useApp()
   const role = state.currentUser.role
-  const loggedEmployeeId = localStorage.getItem('orion_logged_employee') || ''
+  const loggedEmployeeId = state.currentUser.employeeId || ''
   const canCreate = CAN_CREATE_ROLES.includes(role)
 
   // Load from API on mount
