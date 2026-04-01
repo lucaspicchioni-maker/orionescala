@@ -331,18 +331,22 @@ for (const sql of migrations) {
 
 const userCount = db.prepare('SELECT COUNT(*) as c FROM users').get()
 if (userCount.c === 0) {
+  // Usa variaveis de ambiente se disponiveis, senao gera senhas aleatorias
+  const genPass = (envKey, fallback) => process.env[envKey] || fallback || randomUUID().slice(0, 12)
   const defaultUsers = [
-    { name: 'Admin', role: 'admin', password: 'admin123' },
-    { name: 'Gerente', role: 'gerente', password: 'gerente123' },
-    { name: 'Supervisor', role: 'supervisor', password: 'supervisor123' },
-    { name: 'RH', role: 'rh', password: 'rh123' },
-    { name: 'Vivian', role: 'gerente', password: 'vivian123' },
+    { name: 'Admin',      role: 'admin',      password: genPass('SEED_ADMIN_PASSWORD') },
+    { name: 'Gerente',    role: 'gerente',     password: genPass('SEED_GERENTE_PASSWORD') },
+    { name: 'Supervisor', role: 'supervisor',  password: genPass('SEED_SUPERVISOR_PASSWORD') },
+    { name: 'RH',         role: 'rh',          password: genPass('SEED_RH_PASSWORD') },
+    { name: 'Vivian',     role: 'gerente',     password: genPass('SEED_VIVIAN_PASSWORD') },
   ]
   const insert = db.prepare('INSERT INTO users (id, name, role, password_hash) VALUES (?, ?, ?, ?)')
+  console.log('✅ Usuários padrão criados — GUARDE ESTAS SENHAS:')
   for (const u of defaultUsers) {
     insert.run(randomUUID(), u.name, u.role, bcrypt.hashSync(u.password, 10))
+    console.log(`   ${u.name} (${u.role}): ${u.password}`)
   }
-  console.log('✅ Usuários padrão criados')
+  console.log('   Configure variaveis SEED_*_PASSWORD no Railway para senhas fixas.')
 }
 
 // ── Seed colaboradores if none exist ────────────────────────────────────────

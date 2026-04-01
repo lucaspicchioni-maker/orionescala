@@ -9,6 +9,7 @@ import rateLimit from 'express-rate-limit'
 import helmet from 'helmet'
 import cors from 'cors'
 import bcrypt from 'bcryptjs'
+import compression from 'compression'
 import {
   users, employees, schedules, ponto, convocations, appData, getDb,
   bancoHoras, productivity, weeklyGoals, shiftSwaps, availabilities,
@@ -23,12 +24,17 @@ const indexPath = path.join(distPath, 'index.html')
 const APP_URL = process.env.APP_URL || 'https://orionescala-production.up.railway.app'
 
 // ── JWT Secret (obrigatorio em producao) ────────────────────────────────
-const _JWT_SECRET = process.env.JWT_SECRET || 'orion-secret-2024'
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  console.error('FATAL: JWT_SECRET nao definida em producao. Configure no Railway e reinicie.')
+  process.exit(1)
+}
+const _JWT_SECRET = process.env.JWT_SECRET || 'orion-dev-secret-nao-usar-em-producao'
 if (!process.env.JWT_SECRET) {
-  console.warn('WARN: JWT_SECRET nao definida. Defina a variavel de ambiente JWT_SECRET no Railway.')
+  console.warn('WARN: JWT_SECRET nao definida. Usando secret de desenvolvimento — NAO USE EM PRODUCAO.')
 }
 
 // ── Security middleware ─────────────────────────────────────────────────
+app.use(compression())
 app.use(helmet({ contentSecurityPolicy: false })) // CSP off para SPA com inline scripts
 app.use(cors({
   origin: APP_URL,
@@ -101,6 +107,61 @@ function authMiddleware(req, res, next) {
 
 app.use(authMiddleware)
 
+// ── Banco de Horas: atualiza automaticamente ao salvar ponto ─────────────
+function syncBancoHoras(pontoRecord) {
+  try {
+    if (!pontoRecord.employeeId || !pontoRecord.date) return
+    // Calcula semana (segunda-feira)
+    const d = new Date(pontoRecord.date + 'T12:00:00')
+    const day = d.getDay()
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+    const weekStart = new Date(d.setDate(diff)).toISOString().split('T')[0]
+
+    // Minutos trabalhados do registro de ponto
+    const workedMinutes = pontoRecord.workedMinutes || 0
+
+    // Minutos escalados: busca turno na escala publicada da semana
+    let scheduledMinutes = 0
+    const schedRow = getDb().prepare('SELECT data FROM schedules WHERE week_start = ? AND published = 1').get(weekStart)
+    if (schedRow) {
+      try {
+        const schedData = JSON.parse(schedRow.data)
+        for (const dayObj of schedData.days || []) {
+          if (dayObj.date === pontoRecord.date) {
+            for (const slot of dayObj.slots || []) {
+              const assigned = (slot.assignments || []).find(a => a.employeeId === pontoRecord.employeeId)
+              if (assigned) {
+                // Calcula duração do turno em minutos a partir do hour (ex: "09:00-15:00")
+                const match = slot.hour?.match(/(\d{2}):(\d{2})-(\d{2}):(\d{2})/)
+                if (match) {
+                  const startMin = parseInt(match[1]) * 60 + parseInt(match[2])
+                  let endMin = parseInt(match[3]) * 60 + parseInt(match[4])
+                  if (endMin <= startMin) endMin += 24 * 60 // turno noturno
+                  scheduledMinutes += endMin - startMin
+                }
+              }
+            }
+          }
+        }
+      } catch { /* escala malformada, ignora */ }
+    }
+
+    const balanceMinutes = workedMinutes - scheduledMinutes
+    bancoHoras.upsert({
+      employeeId: pontoRecord.employeeId,
+      date: pontoRecord.date,
+      weekStart,
+      scheduledMinutes,
+      workedMinutes,
+      balanceMinutes,
+      type: balanceMinutes > 0 ? 'extra' : balanceMinutes < 0 ? 'deficit' : 'regular',
+      notes: 'auto',
+    })
+  } catch (err) {
+    console.error('[syncBancoHoras]', err?.message || err)
+  }
+}
+
 // ── Health ──────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => {
@@ -138,9 +199,7 @@ app.post('/api/auth/login', loginLimiter, (req, res) => {
       token,
       user: { id: user.id, name: user.name, role: user.role, employeeId: user.employee_id },
     })
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/auth/logout', (_req, res) => {
@@ -157,9 +216,7 @@ app.get('/api/auth/me', (req, res) => {
       role: user.role,
       employeeId: user.employee_id,
     })
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Users management ────────────────────────────────────────────────────
@@ -169,9 +226,7 @@ app.get('/api/users', requireRole('admin'), (_req, res) => {
     const db = getDb()
     const all = db.prepare('SELECT id, name, role, employee_id FROM users ORDER BY name').all()
     res.json(all)
-  } catch {
-    res.status(500).json({ error: 'Erro interno' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/users', requireRole('admin'), (req, res) => {
@@ -182,9 +237,7 @@ app.post('/api/users', requireRole('admin'), (req, res) => {
     if (existing) return res.status(409).json({ error: 'Ja existe um usuario com este nome' })
     const id = users.create({ name, role, password, employeeId })
     res.status(201).json({ id, name, role, employeeId: employeeId || null })
-  } catch {
-    res.status(500).json({ error: 'Erro interno' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.put('/api/users/:id/password', requireRole('admin'), (req, res) => {
@@ -196,9 +249,7 @@ app.put('/api/users/:id/password', requireRole('admin'), (req, res) => {
     if (!user) return res.status(404).json({ error: 'Usuario nao encontrado' })
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(bcrypt.hashSync(password, 10), req.params.id)
     res.json({ ok: true })
-  } catch {
-    res.status(500).json({ error: 'Erro interno' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.delete('/api/users/:id', requireRole('admin'), (req, res) => {
@@ -206,9 +257,7 @@ app.delete('/api/users/:id', requireRole('admin'), (req, res) => {
     const db = getDb()
     db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id)
     res.json({ ok: true })
-  } catch {
-    res.status(500).json({ error: 'Erro interno' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Employees CRUD ──────────────────────────────────────────────────────
@@ -217,9 +266,7 @@ app.get('/api/employees', requireRole('admin', 'gerente', 'supervisor', 'rh'), (
   try {
     const all = employees.getAll().map(employees.toFrontend)
     res.json(all)
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/employees', requireRole('admin', 'gerente', 'rh'), (req, res) => {
@@ -232,9 +279,7 @@ app.post('/api/employees', requireRole('admin', 'gerente', 'rh'), (req, res) => 
     const id = employees.create(req.body)
     const emp = employees.getById(id)
     res.json(employees.toFrontend(emp))
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.put('/api/employees/:id', requireRole('admin', 'gerente', 'rh'), (req, res) => {
@@ -243,18 +288,14 @@ app.put('/api/employees/:id', requireRole('admin', 'gerente', 'rh'), (req, res) 
     const emp = employees.getById(req.params.id)
     if (!emp) return res.status(404).json({ error: 'Colaborador nao encontrado' })
     res.json(employees.toFrontend(emp))
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.delete('/api/employees/:id', requireRole('admin', 'gerente'), (req, res) => {
   try {
     employees.delete(req.params.id)
     res.json({ ok: true })
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Schedules ───────────────────────────────────────────────────────────
@@ -263,9 +304,7 @@ app.get('/api/schedules', requireRole('admin', 'gerente', 'supervisor', 'rh'), (
   try {
     const all = schedules.getAll()
     res.json(all)
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.get('/api/schedules/:weekStart', (req, res) => {
@@ -273,9 +312,7 @@ app.get('/api/schedules/:weekStart', (req, res) => {
     const schedule = schedules.getByWeek(req.params.weekStart)
     if (!schedule) return res.status(404).json({ error: 'Escala nao encontrada' })
     res.json(schedule)
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.put('/api/schedules/:weekStart', requireRole('admin', 'gerente'), (req, res) => {
@@ -283,9 +320,7 @@ app.put('/api/schedules/:weekStart', requireRole('admin', 'gerente'), (req, res)
     schedules.upsert(req.params.weekStart, { ...req.body, weekStart: req.params.weekStart })
     const schedule = schedules.getByWeek(req.params.weekStart)
     res.json(schedule)
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Publish Schedule + Create Convocations ──────────────────────────────
@@ -408,9 +443,7 @@ app.post('/api/schedules/:weekStart/publish', requireRole('admin', 'gerente'), (
       totalConvocations: messages.length,
       messages,
     })
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Ponto ───────────────────────────────────────────────────────────────
@@ -418,9 +451,7 @@ app.post('/api/schedules/:weekStart/publish', requireRole('admin', 'gerente'), (
 app.get('/api/ponto', requireRole('admin', 'gerente', 'supervisor', 'rh'), (_req, res) => {
   try {
     res.json(ponto.getAll())
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/ponto', (req, res) => {
@@ -435,19 +466,18 @@ app.post('/api/ponto', (req, res) => {
     }
     const record = { ...req.body, id: req.body.id || randomUUID() }
     ponto.upsert(record)
+    syncBancoHoras(record)
     res.json(record)
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.put('/api/ponto/:id', requireRole('admin', 'gerente', 'supervisor'), (req, res) => {
   try {
-    ponto.upsert({ ...req.body, id: req.params.id })
+    const record = { ...req.body, id: req.params.id }
+    ponto.upsert(record)
+    syncBancoHoras(record)
     res.json({ ok: true })
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Convocations ────────────────────────────────────────────────────────
@@ -478,9 +508,7 @@ app.get('/api/convocations/:weekStart', (req, res) => {
       }
     })
     res.json(enriched)
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // Public: lookup convocation by token
@@ -503,9 +531,7 @@ app.get('/api/convocations/token/:token', (req, res) => {
       presenceDeadline: c.presence_deadline,
       presenceResponse: c.presence_response,
     })
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // Public: confirm or decline convocation
@@ -534,9 +560,7 @@ app.post('/api/convocations/confirm', (req, res) => {
     convocations.updateStatus(c.id, newStatus, response)
 
     res.json({ ok: true, status: newStatus })
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // Public: confirm presence (2h before shift)
@@ -560,9 +584,7 @@ app.post('/api/convocations/presence', (req, res) => {
 
     convocations.updatePresenceResponse(c.id, response)
     res.json({ ok: true, status: response === 'presente' ? 'present' : 'absent' })
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── App Data (generic KV) ───────────────────────────────────────────────
@@ -574,9 +596,7 @@ app.get('/api/data/:key', (req, res) => {
     if (!ALLOWED_KV_KEYS.has(req.params.key)) return res.status(400).json({ error: 'Chave nao permitida' })
     const value = appData.get(req.params.key)
     res.json(value)
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.put('/api/data/:key', requireRole('admin', 'gerente'), (req, res) => {
@@ -584,9 +604,7 @@ app.put('/api/data/:key', requireRole('admin', 'gerente'), (req, res) => {
     if (!ALLOWED_KV_KEYS.has(req.params.key)) return res.status(400).json({ error: 'Chave nao permitida' })
     appData.set(req.params.key, req.body)
     res.json({ ok: true })
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/data/:key/merge', requireRole('admin', 'gerente'), (req, res) => {
@@ -605,9 +623,7 @@ app.post('/api/data/:key/merge', requireRole('admin', 'gerente'), (req, res) => 
     }
     appData.set(req.params.key, merged)
     res.json(merged)
-  } catch {
-    res.status(500).json({ error: 'Erro interno do servidor' })
-  }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Claude AI Routes ────────────────────────────────────────────────────
@@ -762,26 +778,26 @@ Retorne APENAS o texto da mensagem, sem JSON, sem formatacao extra.`,
 app.get('/api/banco-horas/employee/:id', (req, res) => {
   try {
     res.json(bancoHoras.getByEmployee(req.params.id).map(bancoHoras.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.get('/api/banco-horas/week/:weekStart', (req, res) => {
   try {
     res.json(bancoHoras.getByWeek(req.params.weekStart).map(bancoHoras.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.get('/api/banco-horas/saldo/:employeeId', (req, res) => {
   try {
     res.json({ saldo: bancoHoras.getSaldo(req.params.employeeId) })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/banco-horas', (req, res) => {
   try {
     const id = bancoHoras.upsert(req.body)
     res.json({ id })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Productivity ────────────────────────────────────────────────────────
@@ -789,13 +805,13 @@ app.post('/api/banco-horas', (req, res) => {
 app.get('/api/productivity/week/:weekStart', (req, res) => {
   try {
     res.json(productivity.getByWeek(req.params.weekStart).map(productivity.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.get('/api/productivity/employee/:id', (req, res) => {
   try {
     res.json(productivity.getByEmployee(req.params.id).map(productivity.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/productivity', (req, res) => {
@@ -810,7 +826,7 @@ app.post('/api/productivity', (req, res) => {
     if (!employeeId) return res.status(400).json({ error: 'employeeId obrigatorio' })
     const id = productivity.upsert(req.body)
     res.json({ id })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Weekly Goals ────────────────────────────────────────────────────────
@@ -819,14 +835,14 @@ app.get('/api/goals/:weekStart', (req, res) => {
   try {
     const row = weeklyGoals.getByWeek(req.params.weekStart)
     res.json(weeklyGoals.toFrontend(row))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.put('/api/goals/:weekStart', requireRole('admin', 'gerente', 'rh'), (req, res) => {
   try {
     const id = weeklyGoals.upsert({ ...req.body, weekStart: req.params.weekStart, createdBy: req.user.name })
     res.json({ id })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Shift Swaps ─────────────────────────────────────────────────────────
@@ -834,13 +850,13 @@ app.put('/api/goals/:weekStart', requireRole('admin', 'gerente', 'rh'), (req, re
 app.get('/api/shift-swaps', (_req, res) => {
   try {
     res.json(shiftSwaps.getPending().map(shiftSwaps.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.get('/api/shift-swaps/employee/:id', (req, res) => {
   try {
     res.json(shiftSwaps.getByEmployee(req.params.id).map(shiftSwaps.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/shift-swaps', (req, res) => {
@@ -855,14 +871,14 @@ app.post('/api/shift-swaps', (req, res) => {
     }
     const id = shiftSwaps.create(req.body)
     res.json({ id })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.put('/api/shift-swaps/:id/resolve', (req, res) => {
   try {
     shiftSwaps.resolve(req.params.id, req.body.status, req.user.name)
     res.json({ ok: true })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Availabilities ──────────────────────────────────────────────────────
@@ -870,13 +886,13 @@ app.put('/api/shift-swaps/:id/resolve', (req, res) => {
 app.get('/api/availabilities/week/:weekStart', (req, res) => {
   try {
     res.json(availabilities.getByWeek(req.params.weekStart).map(availabilities.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.get('/api/availabilities/employee/:id', (req, res) => {
   try {
     res.json(availabilities.getByEmployee(req.params.id).map(availabilities.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.put('/api/availabilities', (req, res) => {
@@ -888,7 +904,7 @@ app.put('/api/availabilities', (req, res) => {
     }
     const id = availabilities.upsert(req.body)
     res.json({ id })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Feedbacks (Avaliação 360) ───────────────────────────────────────────
@@ -896,13 +912,13 @@ app.put('/api/availabilities', (req, res) => {
 app.get('/api/feedbacks/week/:weekStart', (req, res) => {
   try {
     res.json(feedbacks.getByWeek(req.params.weekStart).map(feedbacks.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.get('/api/feedbacks/employee/:id', (req, res) => {
   try {
     res.json(feedbacks.getByEmployee(req.params.id).map(feedbacks.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/feedbacks', (req, res) => {
@@ -917,7 +933,7 @@ app.post('/api/feedbacks', (req, res) => {
     }
     const id = feedbacks.upsert({ ...req.body, evaluatorId: req.user.id })
     res.json({ id })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Shift Feedbacks ─────────────────────────────────────────────────────
@@ -925,7 +941,7 @@ app.post('/api/feedbacks', (req, res) => {
 app.get('/api/shift-feedbacks/week/:weekStart', (req, res) => {
   try {
     res.json(shiftFeedbacks.getByWeek(req.params.weekStart).map(shiftFeedbacks.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/shift-feedbacks', (req, res) => {
@@ -940,7 +956,7 @@ app.post('/api/shift-feedbacks', (req, res) => {
     }
     const id = shiftFeedbacks.upsert(req.body)
     res.json({ id })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Badges ──────────────────────────────────────────────────────────────
@@ -948,20 +964,20 @@ app.post('/api/shift-feedbacks', (req, res) => {
 app.get('/api/badges/employee/:id', (req, res) => {
   try {
     res.json(badges.getByEmployee(req.params.id).map(badges.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.get('/api/badges/week/:weekStart', (req, res) => {
   try {
     res.json(badges.getByWeek(req.params.weekStart).map(badges.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/badges', requireRole('admin', 'gerente', 'supervisor'), (req, res) => {
   try {
     badges.award(req.body)
     res.json({ ok: true })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Announcements (Mural) ───────────────────────────────────────────────
@@ -969,21 +985,21 @@ app.post('/api/badges', requireRole('admin', 'gerente', 'supervisor'), (req, res
 app.get('/api/announcements', (_req, res) => {
   try {
     res.json(announcements.getActive().map(announcements.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/announcements', (req, res) => {
   try {
     const id = announcements.create({ ...req.body, createdBy: req.user.name })
     res.json({ id })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.delete('/api/announcements/:id', requireRole('admin', 'gerente'), (req, res) => {
   try {
     announcements.delete(req.params.id)
     res.json({ ok: true })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/announcements/:id/read', (req, res) => {
@@ -991,7 +1007,7 @@ app.post('/api/announcements/:id/read', (req, res) => {
     const { employeeId } = req.body
     if (employeeId) announcements.markRead(req.params.id, employeeId)
     res.json({ ok: true })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── WhatsApp Log ────────────────────────────────────────────────────────
@@ -999,20 +1015,20 @@ app.post('/api/announcements/:id/read', (req, res) => {
 app.get('/api/whatsapp/messages', (_req, res) => {
   try {
     res.json(whatsappMessages.getRecent(100).map(whatsappMessages.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.get('/api/whatsapp/messages/:employeeId', (req, res) => {
   try {
     res.json(whatsappMessages.getByEmployee(req.params.employeeId).map(whatsappMessages.toFrontend))
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 app.post('/api/whatsapp/log', (req, res) => {
   try {
     const id = whatsappMessages.log(req.body)
     res.json({ id })
-  } catch { res.status(500).json({ error: 'Erro interno do servidor' }) }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
 // ── Automated Jobs (every 60s) ──────────────────────────────────────────
