@@ -329,10 +329,10 @@ for (const sql of migrations) {
 
 // ── Seed default users if none exist ────────────────────────────────────────
 
+const genPass = (envKey) => process.env[envKey] || randomUUID().slice(0, 12)
+
 const userCount = db.prepare('SELECT COUNT(*) as c FROM users').get()
 if (userCount.c === 0) {
-  // Usa variaveis de ambiente se disponiveis, senao gera senhas aleatorias
-  const genPass = (envKey, fallback) => process.env[envKey] || fallback || randomUUID().slice(0, 12)
   const defaultUsers = [
     { name: 'Admin',      role: 'admin',      password: genPass('SEED_ADMIN_PASSWORD') },
     { name: 'Gerente',    role: 'gerente',     password: genPass('SEED_GERENTE_PASSWORD') },
@@ -347,6 +347,20 @@ if (userCount.c === 0) {
     console.log(`   ${u.name} (${u.role}): ${u.password}`)
   }
   console.log('   Configure variaveis SEED_*_PASSWORD no Railway para senhas fixas.')
+}
+
+// ── Garantir que Vivian existe com role gerente ──────────────────────────────
+
+const vivian = db.prepare("SELECT * FROM users WHERE name = 'Vivian' COLLATE NOCASE").get()
+if (!vivian) {
+  const password = genPass('SEED_VIVIAN_PASSWORD')
+  db.prepare('INSERT INTO users (id, name, role, password_hash) VALUES (?, ?, ?, ?)').run(
+    randomUUID(), 'Vivian', 'gerente', bcrypt.hashSync(password, 10)
+  )
+  console.log(`✅ Usuário Vivian criado com role gerente. Senha: ${password}`)
+} else if (vivian.role !== 'gerente') {
+  db.prepare("UPDATE users SET role = 'gerente' WHERE name = 'Vivian' COLLATE NOCASE").run()
+  console.log('✅ Role da Vivian corrigido para gerente.')
 }
 
 // ── Seed colaboradores if none exist ────────────────────────────────────────
