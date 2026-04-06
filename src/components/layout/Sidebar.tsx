@@ -28,6 +28,9 @@ import {
   Bell,
   FileText,
   KeyRound,
+  Palmtree,
+  HardHat,
+  Smile,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useApp } from '@/store/AppContext'
@@ -66,6 +69,8 @@ const navByRole: Record<UserRole, NavEntry[]> = {
     {
       label: 'Gestao', icon: BarChart3, items: [
         { label: 'Custos', icon: DollarSign, to: '/custos' },
+        { label: 'Ferias', icon: Palmtree, to: '/ferias' },
+        { label: 'EPIs', icon: HardHat, to: '/epis' },
         { label: 'Regras', icon: Shield, to: '/regras' },
         { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
         { label: 'Recibo', icon: FileText, to: '/recibo' },
@@ -75,6 +80,7 @@ const navByRole: Record<UserRole, NavEntry[]> = {
     {
       label: 'Comunicacao', icon: Settings2, items: [
         { label: 'WhatsApp', icon: MessageCircle, to: '/whatsapp' },
+        { label: 'Clima', icon: Smile, to: '/clima' },
         { label: 'Mural', icon: Megaphone, to: '/mural' },
       ],
     },
@@ -93,6 +99,8 @@ const navByRole: Record<UserRole, NavEntry[]> = {
     {
       label: 'Gestao', icon: BarChart3, items: [
         { label: 'Custos', icon: DollarSign, to: '/custos' },
+        { label: 'Ferias', icon: Palmtree, to: '/ferias' },
+        { label: 'EPIs', icon: HardHat, to: '/epis' },
         { label: 'Regras', icon: Shield, to: '/regras' },
         { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
         { label: 'Recibo', icon: FileText, to: '/recibo' },
@@ -101,6 +109,7 @@ const navByRole: Record<UserRole, NavEntry[]> = {
     {
       label: 'Comunicacao', icon: Settings2, items: [
         { label: 'WhatsApp', icon: MessageCircle, to: '/whatsapp' },
+        { label: 'Clima', icon: Smile, to: '/clima' },
         { label: 'Mural', icon: Megaphone, to: '/mural' },
       ],
     },
@@ -114,6 +123,7 @@ const navByRole: Record<UserRole, NavEntry[]> = {
         { label: 'Check-in', icon: MapPin, to: '/checkin' },
         { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
         { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
+        { label: 'EPIs', icon: HardHat, to: '/epis' },
       ],
     },
     { label: 'Mural', icon: Megaphone, to: '/mural' },
@@ -124,6 +134,9 @@ const navByRole: Record<UserRole, NavEntry[]> = {
       label: 'Gestao', icon: BarChart3, items: [
         { label: 'Painel RH', icon: UserCog, to: '/rh' },
         { label: 'Equipe', icon: Users, to: '/colaboradores' },
+        { label: 'Ferias', icon: Palmtree, to: '/ferias' },
+        { label: 'EPIs', icon: HardHat, to: '/epis' },
+        { label: 'Clima', icon: Smile, to: '/clima' },
         { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
         { label: 'Custos', icon: DollarSign, to: '/custos' },
         { label: 'Recibo', icon: FileText, to: '/recibo' },
@@ -138,8 +151,10 @@ const navByRole: Record<UserRole, NavEntry[]> = {
         { label: 'Escala', icon: CalendarDays, to: '/minha-area' },
         { label: 'Check-in', icon: MapPin, to: '/checkin' },
         { label: 'Disponib.', icon: Clock, to: '/disponibilidade' },
+        { label: 'Ferias', icon: Palmtree, to: '/ferias' },
       ],
     },
+    { label: 'Clima', icon: Smile, to: '/clima' },
     { label: 'Avaliar', icon: Star, to: '/avaliacao-turno' },
     { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],

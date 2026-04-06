@@ -14,6 +14,7 @@ import {
   users, employees, schedules, ponto, convocations, appData, getDb,
   bancoHoras, productivity, weeklyGoals, shiftSwaps, availabilities,
   feedbacks, shiftFeedbacks, badges, announcements, whatsappMessages,
+  vacationRequests, epis, climateSurveys,
 } from './database.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -1028,6 +1029,119 @@ app.post('/api/whatsapp/log', (req, res) => {
   try {
     const id = whatsappMessages.log(req.body)
     res.json({ id })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// ── Férias ──────────────────────────────────────────────────────────────────
+
+app.get('/api/vacations', (req, res) => {
+  try {
+    const role = req.user.role
+    const employeeId = req.user.employeeId
+    if (role === 'colaborador' && employeeId) {
+      res.json(vacationRequests.getByEmployee(employeeId).map(vacationRequests.toFrontend))
+    } else {
+      res.json(vacationRequests.getAll().map(vacationRequests.toFrontend))
+    }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.post('/api/vacations', (req, res) => {
+  try {
+    const { employeeId, startDate, endDate, days, notes } = req.body
+    if (!employeeId || !startDate || !endDate || !days) return res.status(400).json({ error: 'Dados incompletos' })
+    const id = vacationRequests.create({ employeeId, startDate, endDate, days, notes, requestedBy: req.user.name })
+    res.json({ id })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.put('/api/vacations/:id/approve', requireRole('admin', 'gerente', 'rh'), (req, res) => {
+  try {
+    vacationRequests.updateStatus(req.params.id, 'approved', req.user.name)
+    res.json({ ok: true })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.put('/api/vacations/:id/reject', requireRole('admin', 'gerente', 'rh'), (req, res) => {
+  try {
+    vacationRequests.updateStatus(req.params.id, 'rejected', req.user.name)
+    res.json({ ok: true })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// ── EPIs ─────────────────────────────────────────────────────────────────────
+
+app.get('/api/epis', requireRole('admin', 'gerente', 'rh', 'supervisor'), (req, res) => {
+  try {
+    const allEpis = epis.getAll().map(epis.toFrontend)
+    res.json(allEpis)
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.get('/api/epis/expiring', requireRole('admin', 'gerente', 'rh', 'supervisor'), (req, res) => {
+  try {
+    res.json(epis.getExpiringSoon(30).map(epis.toFrontend))
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.post('/api/epis', requireRole('admin', 'gerente', 'rh'), (req, res) => {
+  try {
+    const { employeeId, name, type, deliveredAt, expiresAt, notes } = req.body
+    if (!employeeId || !name || !type || !deliveredAt) return res.status(400).json({ error: 'Dados incompletos' })
+    const id = epis.create({ employeeId, name, type, deliveredAt, expiresAt, notes })
+    res.json({ id })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.put('/api/epis/:id', requireRole('admin', 'gerente', 'rh'), (req, res) => {
+  try {
+    epis.update(req.params.id, req.body)
+    res.json({ ok: true })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.delete('/api/epis/:id', requireRole('admin', 'gerente', 'rh'), (req, res) => {
+  try {
+    epis.delete(req.params.id)
+    res.json({ ok: true })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// ── Pesquisa de Clima ────────────────────────────────────────────────────────
+
+app.get('/api/surveys', (req, res) => {
+  try {
+    const role = req.user.role
+    const employeeId = req.user.employeeId
+    if (role === 'colaborador' && employeeId) {
+      res.json(climateSurveys.getByWeek(req.query.week || '').map(climateSurveys.toFrontend).filter(s => s.employeeId === employeeId))
+    } else {
+      const week = req.query.week
+      res.json(week ? climateSurveys.getByWeek(week).map(climateSurveys.toFrontend) : climateSurveys.getAll().map(climateSurveys.toFrontend))
+    }
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.post('/api/surveys', (req, res) => {
+  try {
+    const { week, employeeId, score, highlights, improvements } = req.body
+    if (!week || !employeeId || !score) return res.status(400).json({ error: 'Dados incompletos' })
+    const id = climateSurveys.create({ week, employeeId, score, highlights, improvements })
+    res.json({ id })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.get('/api/surveys/results', requireRole('admin', 'gerente', 'rh'), (req, res) => {
+  try {
+    const week = req.query.week || ''
+    res.json(climateSurveys.getResults(week))
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.get('/api/surveys/check/:week/:employeeId', (req, res) => {
+  try {
+    const row = climateSurveys.getByEmployeeAndWeek(req.params.employeeId, req.params.week)
+    res.json({ answered: !!row, survey: row ? climateSurveys.toFrontend(row) : null })
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 

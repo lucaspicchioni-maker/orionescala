@@ -21,19 +21,16 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         icons: [
-          {
-            src: '/icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
-          },
+          { src: '/icons/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/orionescala-production\.up\.railway\.app\/api\/.*/i,
+            urlPattern: /\/api\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',

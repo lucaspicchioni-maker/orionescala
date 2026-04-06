@@ -451,6 +451,56 @@ export interface ShiftFeedback {
   createdAt: string
 }
 
+// ── Férias ───────────────────────────────────────────────────────────────
+
+export interface VacationRequest {
+  id: string
+  employeeId: string
+  startDate: string
+  endDate: string
+  days: number
+  status: 'pending' | 'approved' | 'rejected'
+  requestedBy: string
+  approvedBy: string | null
+  notes: string
+  createdAt: string
+}
+
+// ── EPIs ──────────────────────────────────────────────────────────────────
+
+export interface EPIRecord {
+  id: string
+  employeeId: string
+  name: string
+  type: string
+  deliveredAt: string
+  expiresAt: string | null
+  returnedAt: string | null
+  notes: string
+  createdAt: string
+}
+
+// ── Pesquisa de Clima ─────────────────────────────────────────────────────
+
+export interface ClimateSurvey {
+  id: string
+  week: string
+  employeeId: string
+  score: number
+  highlights: string
+  improvements: string
+  createdAt: string
+}
+
+export interface ClimateSurveyResults {
+  week: string
+  avgScore: number
+  totalResponses: number
+  scoreDistribution: Record<number, number>
+  highlights: string[]
+  improvements: string[]
+}
+
 // ── Mural de Avisos ──────────────────────────────────────────────
 
 export interface Announcement {

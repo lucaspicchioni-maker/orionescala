@@ -39,6 +39,9 @@ const WhatsAppPage = lazy(() => import('@/pages/WhatsAppPage'))
 const ReciboPagamentoPage = lazy(() => import('@/pages/ReciboPagamentoPage'))
 const ConvocacoesPage = lazy(() => import('@/pages/ConvocacoesPage'))
 const UsuariosPage = lazy(() => import('@/pages/UsuariosPage'))
+const VacoesPage = lazy(() => import('@/pages/VacoesPage'))
+const EPIsPage = lazy(() => import('@/pages/EPIsPage'))
+const ClimaPesquisaPage = lazy(() => import('@/pages/ClimaPesquisaPage'))
 
 const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/': ['admin', 'gerente', 'supervisor', 'rh', 'colaborador'],
@@ -71,6 +74,9 @@ const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/historico-presenca': ['admin', 'gerente', 'supervisor'],
   '/troca-turno': ['admin', 'gerente', 'supervisor', 'colaborador'],
   '/banco-horas': ['admin', 'gerente', 'supervisor', 'rh'],
+  '/ferias': ['admin', 'gerente', 'rh', 'colaborador'],
+  '/epis': ['admin', 'gerente', 'rh', 'supervisor'],
+  '/clima': ['admin', 'gerente', 'rh', 'supervisor', 'colaborador'],
 }
 
 // Watches for urgent announcements after API data loads and shows toast notifications
@@ -163,6 +169,9 @@ function AppRoutes() {
           <Route path="/recibo" element={<RoleGuard path="/recibo"><ReciboPagamentoPage /></RoleGuard>} />
           <Route path="/convocacoes" element={<RoleGuard path="/convocacoes"><ConvocacoesPage /></RoleGuard>} />
           <Route path="/usuarios" element={<RoleGuard path="/usuarios"><UsuariosPage /></RoleGuard>} />
+          <Route path="/ferias" element={<RoleGuard path="/ferias"><VacoesPage /></RoleGuard>} />
+          <Route path="/epis" element={<RoleGuard path="/epis"><EPIsPage /></RoleGuard>} />
+          <Route path="/clima" element={<RoleGuard path="/clima"><ClimaPesquisaPage /></RoleGuard>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

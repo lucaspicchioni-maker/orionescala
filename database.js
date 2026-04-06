@@ -268,6 +268,45 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'sent',
     sent_at TEXT DEFAULT (datetime('now'))
   );
+
+  -- ── Férias ────────────────────────────────────────────────────────────────
+  CREATE TABLE IF NOT EXISTS vacation_requests (
+    id TEXT PRIMARY KEY,
+    employee_id TEXT NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    days INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    requested_by TEXT NOT NULL,
+    approved_by TEXT,
+    notes TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  -- ── EPIs ──────────────────────────────────────────────────────────────────
+  CREATE TABLE IF NOT EXISTS epis (
+    id TEXT PRIMARY KEY,
+    employee_id TEXT NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    delivered_at TEXT NOT NULL,
+    expires_at TEXT,
+    returned_at TEXT,
+    notes TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  -- ── Pesquisa de Clima ─────────────────────────────────────────────────────
+  CREATE TABLE IF NOT EXISTS climate_surveys (
+    id TEXT PRIMARY KEY,
+    week TEXT NOT NULL,
+    employee_id TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    score INTEGER NOT NULL,
+    highlights TEXT DEFAULT '',
+    improvements TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(week, employee_id)
+  );
 `)
 
 // ── Índices de performance ────────────────────────────────────────────────────
@@ -310,6 +349,15 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_wa_employee ON whatsapp_messages(employee_id);
   CREATE INDEX IF NOT EXISTS idx_wa_sent_at ON whatsapp_messages(sent_at);
+
+  CREATE INDEX IF NOT EXISTS idx_vacation_employee ON vacation_requests(employee_id);
+  CREATE INDEX IF NOT EXISTS idx_vacation_status ON vacation_requests(status);
+
+  CREATE INDEX IF NOT EXISTS idx_epi_employee ON epis(employee_id);
+  CREATE INDEX IF NOT EXISTS idx_epi_expires ON epis(expires_at);
+
+  CREATE INDEX IF NOT EXISTS idx_survey_week ON climate_surveys(week);
+  CREATE INDEX IF NOT EXISTS idx_survey_employee ON climate_surveys(employee_id);
 `)
 
 // ── Migrações para banco existente (ADD COLUMN IF NOT EXISTS via try/catch) ──
@@ -849,6 +897,93 @@ export const whatsappMessages = {
   toFrontend: (row) => ({
     id: row.id, employeeId: row.employee_id, phone: row.phone,
     message: row.message, type: row.type, status: row.status, sentAt: row.sent_at,
+  }),
+}
+
+// ── Vacation Requests ─────────────────────────────────────────────────────────
+
+export const vacationRequests = {
+  getAll: () => db.prepare('SELECT * FROM vacation_requests ORDER BY created_at DESC').all(),
+  getByEmployee: (employeeId) => db.prepare('SELECT * FROM vacation_requests WHERE employee_id=? ORDER BY created_at DESC').all(employeeId),
+  create: (data) => {
+    const id = randomUUID()
+    db.prepare(`INSERT INTO vacation_requests (id, employee_id, start_date, end_date, days, status, requested_by, notes)
+      VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)`
+    ).run(id, data.employeeId, data.startDate, data.endDate, data.days, data.requestedBy, data.notes || '')
+    return id
+  },
+  updateStatus: (id, status, approvedBy) => {
+    db.prepare('UPDATE vacation_requests SET status=?, approved_by=? WHERE id=?').run(status, approvedBy || null, id)
+  },
+  toFrontend: (row) => ({
+    id: row.id, employeeId: row.employee_id, startDate: row.start_date,
+    endDate: row.end_date, days: row.days, status: row.status,
+    requestedBy: row.requested_by, approvedBy: row.approved_by,
+    notes: row.notes, createdAt: row.created_at,
+  }),
+}
+
+// ── EPIs ──────────────────────────────────────────────────────────────────────
+
+export const epis = {
+  getAll: () => db.prepare('SELECT * FROM epis ORDER BY delivered_at DESC').all(),
+  getByEmployee: (employeeId) => db.prepare('SELECT * FROM epis WHERE employee_id=? ORDER BY delivered_at DESC').all(employeeId),
+  getExpiringSoon: (days = 30) => db.prepare(
+    `SELECT * FROM epis WHERE expires_at IS NOT NULL AND returned_at IS NULL
+     AND expires_at <= date('now', '+' || ? || ' days') ORDER BY expires_at ASC`
+  ).all(days),
+  create: (data) => {
+    const id = randomUUID()
+    db.prepare(`INSERT INTO epis (id, employee_id, name, type, delivered_at, expires_at, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, data.employeeId, data.name, data.type, data.deliveredAt, data.expiresAt || null, data.notes || '')
+    return id
+  },
+  update: (id, data) => {
+    db.prepare('UPDATE epis SET name=?, type=?, delivered_at=?, expires_at=?, returned_at=?, notes=? WHERE id=?').run(
+      data.name, data.type, data.deliveredAt, data.expiresAt || null, data.returnedAt || null, data.notes || '', id
+    )
+  },
+  delete: (id) => db.prepare('DELETE FROM epis WHERE id=?').run(id),
+  toFrontend: (row) => ({
+    id: row.id, employeeId: row.employee_id, name: row.name, type: row.type,
+    deliveredAt: row.delivered_at, expiresAt: row.expires_at,
+    returnedAt: row.returned_at, notes: row.notes, createdAt: row.created_at,
+  }),
+}
+
+// ── Climate Surveys ───────────────────────────────────────────────────────────
+
+export const climateSurveys = {
+  getAll: () => db.prepare('SELECT * FROM climate_surveys ORDER BY created_at DESC').all(),
+  getByWeek: (week) => db.prepare('SELECT * FROM climate_surveys WHERE week=?').all(week),
+  getByEmployeeAndWeek: (employeeId, week) =>
+    db.prepare('SELECT * FROM climate_surveys WHERE employee_id=? AND week=?').get(employeeId, week),
+  create: (data) => {
+    const id = randomUUID()
+    db.prepare(`INSERT OR REPLACE INTO climate_surveys (id, week, employee_id, score, highlights, improvements)
+      VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(id, data.week, data.employeeId, data.score, data.highlights || '', data.improvements || '')
+    return id
+  },
+  getResults: (week) => {
+    const rows = db.prepare('SELECT * FROM climate_surveys WHERE week=?').all(week)
+    if (!rows.length) return { week, avgScore: 0, totalResponses: 0, scoreDistribution: {}, highlights: [], improvements: [] }
+    const avgScore = rows.reduce((s, r) => s + r.score, 0) / rows.length
+    const dist = {}
+    for (const r of rows) dist[r.score] = (dist[r.score] || 0) + 1
+    return {
+      week, avgScore: Math.round(avgScore * 10) / 10,
+      totalResponses: rows.length,
+      scoreDistribution: dist,
+      highlights: rows.map(r => r.highlights).filter(Boolean),
+      improvements: rows.map(r => r.improvements).filter(Boolean),
+    }
+  },
+  toFrontend: (row) => ({
+    id: row.id, week: row.week, employeeId: row.employee_id,
+    score: row.score, highlights: row.highlights, improvements: row.improvements,
+    createdAt: row.created_at,
   }),
 }
 

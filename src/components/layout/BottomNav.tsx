@@ -12,6 +12,7 @@ import {
   Activity,
   Megaphone,
   Star,
+  Smile,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMemo } from 'react'
@@ -58,7 +59,7 @@ const bottomByRole: Record<UserRole, NavItem[]> = {
     { label: 'Inicio', icon: Home, to: '/' },
     { label: 'Escala', icon: CalendarDays, to: '/minha-area' },
     { label: 'Check-in', icon: MapPin, to: '/checkin' },
-    { label: 'Avaliar', icon: Star, to: '/avaliacao-turno' },
+    { label: 'Clima', icon: Smile, to: '/clima' },
     { label: 'Mural', icon: Megaphone, to: '/mural' },
   ],
 }
