@@ -1,11 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useApp } from '@/store/AppContext'
+import { useToast } from '@/components/ui/Toast'
 import { Clock, TrendingUp, TrendingDown, Minus, Plus, RefreshCw, Download } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { BancoHorasEntry } from '@/types'
 
 export default function BancoHorasPage() {
   const { state, dispatch } = useApp()
+  const { toast } = useToast()
   const role = state.currentUser.role
   const loggedEmployeeId = state.currentUser.employeeId || ''
   const [showAdjust, setShowAdjust] = useState(false)
@@ -35,7 +37,7 @@ export default function BancoHorasPage() {
     state.pontoRecords.forEach(p => {
       if (!balances[p.employeeId]) return
       const scheduled = p.scheduledStart && p.scheduledEnd
-        ? ((parseInt(p.scheduledEnd.split(':')[0]) - parseInt(p.scheduledStart.split(':')[0])) * 60)
+        ? (() => { const [sh, sm] = p.scheduledStart.split(':').map(Number); const [eh, em] = p.scheduledEnd.split(':').map(Number); return (eh * 60 + em) - (sh * 60 + sm) })()
         : 0
       balances[p.employeeId].scheduled += scheduled
       balances[p.employeeId].worked += p.workedMinutes
@@ -95,6 +97,7 @@ export default function BancoHorasPage() {
       dispatch({ type: 'SET_BANCO_HORAS', payload: fresh })
     } catch {
       dispatch({ type: 'ADD_BANCO_HORAS', payload: entry })
+      toast('error', 'Erro ao salvar ajuste no servidor. Salvo localmente.')
     }
     setShowAdjust(false)
     setAdjEmployee('')
@@ -120,7 +123,9 @@ export default function BancoHorasPage() {
       if (existing.has(key)) return
       if (!p.scheduledStart || !p.scheduledEnd) return
 
-      const scheduled = (parseInt(p.scheduledEnd.split(':')[0]) - parseInt(p.scheduledStart.split(':')[0])) * 60
+      const [sh, sm] = p.scheduledStart.split(':').map(Number)
+      const [eh, em] = p.scheduledEnd.split(':').map(Number)
+      const scheduled = (eh * 60 + em) - (sh * 60 + sm)
       entries.push({
         id: crypto.randomUUID(),
         employeeId: p.employeeId,
@@ -150,6 +155,42 @@ export default function BancoHorasPage() {
         // already dispatched individually above
       }
     }
+  }
+
+  // Recalculate ALL regular entries with correct formula (retroactive fix)
+  async function recalcularTodos() {
+    const entries: BancoHorasEntry[] = []
+    state.pontoRecords.forEach(p => {
+      if (!p.scheduledStart || !p.scheduledEnd) return
+      const [sh, sm] = p.scheduledStart.split(':').map(Number)
+      const [eh, em] = p.scheduledEnd.split(':').map(Number)
+      const scheduled = (eh * 60 + em) - (sh * 60 + sm)
+      const existing = state.bancoHoras.find(b => b.employeeId === p.employeeId && b.date === p.date && b.type === 'regular')
+      entries.push({
+        id: existing?.id || crypto.randomUUID(),
+        employeeId: p.employeeId,
+        date: p.date,
+        weekStart: state.currentWeek,
+        scheduledMinutes: scheduled,
+        workedMinutes: p.workedMinutes,
+        balanceMinutes: p.workedMinutes - scheduled,
+        type: 'regular',
+        notes: 'recalculado',
+      })
+    })
+
+    let ok = 0
+    for (const entry of entries) {
+      try {
+        await api.post('/api/banco-horas', entry)
+        ok++
+      } catch { /* ignore */ }
+    }
+    try {
+      const fresh = await api.get<BancoHorasEntry[]>(`/api/banco-horas/week/${state.currentWeek}`)
+      dispatch({ type: 'SET_BANCO_HORAS', payload: fresh })
+    } catch { /* use cached */ }
+    toast('success', `${ok} entradas recalculadas com formula correta.`)
   }
 
   const totalTeamBalance = Object.values(employeeBalances).reduce((s, b) => s + b.balance, 0)
@@ -186,6 +227,9 @@ export default function BancoHorasPage() {
           <div className="flex gap-2">
             <button onClick={syncFromPonto} className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-2 text-xs text-foreground">
               <RefreshCw className="h-3.5 w-3.5" /> Sincronizar
+            </button>
+            <button onClick={recalcularTodos} className="flex items-center gap-1 rounded-lg bg-warning/20 px-3 py-2 text-xs text-warning hover:bg-warning/30 transition-colors">
+              <RefreshCw className="h-3.5 w-3.5" /> Recalcular Todos
             </button>
             <button onClick={() => setShowAdjust(!showAdjust)} className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground">
               <Plus className="h-3.5 w-3.5" /> Ajuste

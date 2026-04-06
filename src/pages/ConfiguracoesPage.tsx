@@ -16,6 +16,7 @@ import {
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppContext'
+import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 export default function ConfiguracoesPage() {
@@ -56,31 +57,29 @@ export default function ConfiguracoesPage() {
     )
   }
 
-  const saveLocation = () => {
-    dispatch({
-      type: 'SET_LOCATION_CONFIG',
-      payload: {
-        name: locName,
-        lat: parseFloat(locLat) || 0,
-        lng: parseFloat(locLng) || 0,
-        radiusMeters: parseInt(locRadius) || 150,
-      },
-    })
+  const saveLocation = async () => {
+    const payload = {
+      name: locName,
+      lat: parseFloat(locLat) || 0,
+      lng: parseFloat(locLng) || 0,
+      radiusMeters: parseInt(locRadius) || 150,
+    }
+    dispatch({ type: 'SET_LOCATION_CONFIG', payload })
+    try { await api.put('/api/data/location-config', payload) } catch { /* fallback to localStorage */ }
     setLocSaved(true)
     setTimeout(() => setLocSaved(false), 3000)
   }
 
-  const saveWhatsApp = () => {
-    dispatch({
-      type: 'SET_WHATSAPP_CONFIG',
-      payload: {
-        provider: waProvider,
-        apiUrl: waApiUrl,
-        apiKey: waApiKey,
-        instance: waInstance,
-        enabled: waEnabled,
-      },
-    })
+  const saveWhatsApp = async () => {
+    const payload = {
+      provider: waProvider,
+      apiUrl: waApiUrl,
+      apiKey: waApiKey,
+      instance: waInstance,
+      enabled: waEnabled,
+    }
+    dispatch({ type: 'SET_WHATSAPP_CONFIG', payload })
+    try { await api.put('/api/data/whatsapp-config', payload) } catch { /* fallback to localStorage */ }
     setWaSaved(true)
     setTimeout(() => setWaSaved(false), 3000)
   }

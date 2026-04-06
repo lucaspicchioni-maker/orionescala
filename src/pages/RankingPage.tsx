@@ -130,15 +130,26 @@ export default function RankingPage() {
 
   const rankings = useMemo<EmployeeScore[]>(() => {
     const activeEmployees = state.employees.filter((e) => e.status === 'ativo' && e.role !== 'gerente')
-    const hasPontoData = state.pontoRecords.length > 0
+
+    // Date cutoff based on selected period
+    const now = new Date()
+    const cutoff = new Date(now)
+    if (period === 'week') cutoff.setDate(now.getDate() - 7)
+    else if (period === 'month') cutoff.setMonth(now.getMonth() - 1)
+    else cutoff.setMonth(now.getMonth() - 3)
+    const cutoffStr = cutoff.toISOString().split('T')[0]
+
+    const filteredPonto = state.pontoRecords.filter(p => p.date >= cutoffStr)
+    const filteredProd = state.productivityRecords.filter(p => p.weekStart >= cutoffStr)
+    const hasPontoData = filteredPonto.length > 0
 
     const scores = activeEmployees.map((emp) => {
-      const records = state.pontoRecords.filter((p) => p.employeeId === emp.id)
+      const records = filteredPonto.filter((p) => p.employeeId === emp.id)
       const presentRecords = records.filter((r) => r.status === 'on_time' || r.status === 'late')
       const onTimeRecords = records.filter((r) => r.status === 'on_time')
 
       let scheduledDays = 0
-      for (const schedule of state.schedules) {
+      for (const schedule of state.schedules.filter(s => s.weekStart >= cutoffStr)) {
         for (const day of schedule.days) {
           if (day.slots.some((s) => s.assignments.some((a) => a.employeeId === emp.id))) {
             scheduledDays++
@@ -146,7 +157,7 @@ export default function RankingPage() {
         }
       }
 
-      const prodRecord = state.productivityRecords.find(p => p.employeeId === emp.id)
+      const prodRecord = filteredProd.find(p => p.employeeId === emp.id)
       const hasRealData = hasPontoData && records.length > 0
 
       let assiduidade = 0

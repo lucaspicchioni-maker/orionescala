@@ -237,6 +237,22 @@ export default function EscalaPage() {
     toast('success', prevSchedule ? 'Estrutura da semana anterior copiada!' : 'Nova escala criada com dados base.')
   }, [weekStart, state.schedules, persistSchedule, toast])
 
+  // Availability lookup: employeeId -> Set of "dayOfWeek|slotHour" strings
+  const availabilityLookup = useMemo(() => {
+    const lookup = new Map<string, Set<string>>()
+    for (const avail of state.availabilities) {
+      if (avail.weekStart !== weekStart) continue
+      const empSet = lookup.get(avail.employeeId) || new Set<string>()
+      for (const slot of avail.slots) {
+        for (const hour of slot.hours) {
+          empSet.add(`${slot.day}|${hour}`)
+        }
+      }
+      lookup.set(avail.employeeId, empSet)
+    }
+    return lookup
+  }, [state.availabilities, weekStart])
+
   const [isSaving, setIsSaving] = useState(false)
   const [editingDemand, setEditingDemand] = useState(false)
   const [selectedDayIndex, setSelectedDayIndex] = useState(0)
@@ -972,7 +988,20 @@ export default function EscalaPage() {
               {DAY_LABELS_FULL[schedule.days[assignModalSlot.dayIndex]?.dayOfWeek]}
             </p>
             <div className="space-y-1">
-              {activeEmployees.map((emp) => {
+              {(() => {
+                const slotDay = schedule.days[assignModalSlot.dayIndex]?.dayOfWeek ?? ''
+                const slotHour = schedule.days[assignModalSlot.dayIndex]?.slots[assignModalSlot.slotIndex]?.hour ?? ''
+                const availKey = `${slotDay}|${slotHour}`
+                const availableFirst = [...activeEmployees].sort((a, b) => {
+                  const aAvail = availabilityLookup.get(a.id)?.has(availKey) ? 0 : 1
+                  const bAvail = availabilityLookup.get(b.id)?.has(availKey) ? 0 : 1
+                  return aAvail - bAvail
+                })
+                return availableFirst
+              })().map((emp) => {
+                const slotDay = schedule.days[assignModalSlot.dayIndex]?.dayOfWeek ?? ''
+                const slotHour = schedule.days[assignModalSlot.dayIndex]?.slots[assignModalSlot.slotIndex]?.hour ?? ''
+                const isAvailable = availabilityLookup.get(emp.id)?.has(`${slotDay}|${slotHour}`) ?? false
                 const alreadyAssigned = isEmployeeAssignedAtHour(
                   schedule.days[assignModalSlot.dayIndex],
                   assignModalSlot.slotIndex,
@@ -990,7 +1019,6 @@ export default function EscalaPage() {
                   emp.id,
                 )
                 // Check lunch peak rule
-                const slotHour = schedule.days[assignModalSlot.dayIndex]?.slots[assignModalSlot.slotIndex]?.hour ?? ''
                 const isLunchPeak =
                   slotHour.startsWith('12:') || slotHour.startsWith('13:')
 
@@ -1032,6 +1060,11 @@ export default function EscalaPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {isAvailable && !alreadyAssigned && (
+                        <Badge variant="success" size="sm">
+                          Disponível
+                        </Badge>
+                      )}
                       {alreadyAssigned && (
                         <Badge variant="muted" size="sm">
                           Já atribuído

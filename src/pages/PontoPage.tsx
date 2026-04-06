@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   LogIn,
@@ -19,6 +19,7 @@ import { Card } from '@/components/ui/Card'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppContext'
+import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { PontoRecord } from '@/types'
 
@@ -110,6 +111,12 @@ export default function PontoPage() {
 
   const weekStart = useMemo(() => getWeekStart(weekOffset), [weekOffset])
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart])
+
+  useEffect(() => {
+    api.get<import('@/types').PontoRecord[]>('/api/ponto').then(records => {
+      dispatch({ type: 'SET_PONTO_RECORDS', payload: records })
+    }).catch(() => { /* use cached */ })
+  }, [weekStart, dispatch])
 
   const todayRecords = useMemo(() => {
     return state.pontoRecords.filter((p) => p.date === selectedDate)

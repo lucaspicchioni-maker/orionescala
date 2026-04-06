@@ -134,9 +134,15 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Peca suas credenciais ao gestor da operacao.
-        </p>
+        <div className="space-y-1 text-center">
+          <p className="text-xs text-muted-foreground">
+            Peca suas credenciais ao gestor da operacao.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Esqueceu sua senha? Solicite ao administrador que a redefina em{' '}
+            <span className="text-primary">Configuracoes → Usuarios</span>.
+          </p>
+        </div>
       </div>
     </div>
   )

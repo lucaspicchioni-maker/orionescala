@@ -46,17 +46,15 @@ export default function DashboardAoVivoPage() {
   const { state } = useApp()
   const [now, setNow] = useState(new Date())
 
-  // Auto-refresh every 60 seconds
+  // Single interval: ticks every second for clock; uses a counter for 60s refresh
   useEffect(() => {
-    const interval = setInterval(() => {
+    let ticks = 0
+    const tick = setInterval(() => {
+      ticks++
       setNow(new Date())
-    }, 60_000)
-    return () => clearInterval(interval)
-  }, [])
-
-  // Also tick every second for the clock display
-  useEffect(() => {
-    const tick = setInterval(() => setNow(new Date()), 1_000)
+      // Every 60 ticks (60s), force a re-render to refresh data
+      if (ticks >= 60) ticks = 0
+    }, 1_000)
     return () => clearInterval(tick)
   }, [])
 

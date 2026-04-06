@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Star, Send, MessageCircle, History } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { useApp } from '@/store/AppContext'
+import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { ShiftFeedback } from '@/types'
@@ -82,6 +83,7 @@ function StarRating({
 
 export default function AvaliacaoTurnoPage() {
   const { state, dispatch } = useApp()
+  const { toast } = useToast()
   const loggedEmployeeId = state.currentUser.employeeId || ''
   const today = getToday()
   const weekStart = getWeekStart()
@@ -144,8 +146,14 @@ export default function AvaliacaoTurnoPage() {
       await api.post('/api/shift-feedbacks', feedback)
       const fresh = await api.get<ShiftFeedback[]>(`/api/shift-feedbacks/week/${weekStart}`)
       dispatch({ type: 'SET_SHIFT_FEEDBACKS', payload: fresh })
-    } catch {
-      dispatch({ type: 'ADD_SHIFT_FEEDBACK', payload: feedback })
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'message' in err ? String((err as {message: unknown}).message) : ''
+      if (msg.includes('409') || msg.includes('ja avaliou')) {
+        toast('error', 'Voce ja avaliou seu turno hoje.')
+      } else {
+        dispatch({ type: 'ADD_SHIFT_FEEDBACK', payload: feedback })
+        toast('error', 'Erro ao enviar avaliacao. Salvo localmente.')
+      }
     }
     setSubmitted(true)
     setScores({

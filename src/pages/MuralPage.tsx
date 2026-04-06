@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Megaphone, Plus, Eye, Bell, X } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { useApp } from '@/store/AppContext'
+import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { Announcement } from '@/types'
@@ -20,6 +21,7 @@ const CAN_CREATE_ROLES = ['gerente', 'admin', 'supervisor']
 
 export default function MuralPage() {
   const { state, dispatch } = useApp()
+  const { toast } = useToast()
   const role = state.currentUser.role
   const loggedEmployeeId = state.currentUser.employeeId || ''
   const canCreate = CAN_CREATE_ROLES.includes(role)
@@ -93,8 +95,10 @@ export default function MuralPage() {
       await api.post('/api/announcements', announcement)
       const fresh = await api.get<Announcement[]>('/api/announcements')
       dispatch({ type: 'SET_ANNOUNCEMENTS', payload: fresh })
+      toast('success', 'Aviso publicado!')
     } catch {
       dispatch({ type: 'ADD_ANNOUNCEMENT', payload: announcement })
+      toast('error', 'Erro ao publicar aviso. Salvo localmente.')
     }
     resetForm()
   }
@@ -111,6 +115,7 @@ export default function MuralPage() {
       })
     }
   }
+
 
   function formatDate(iso: string) {
     const d = new Date(iso)

@@ -13,6 +13,7 @@ import {
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppContext'
+import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { PontoRecord, GeoLocation } from '@/types'
 
@@ -225,6 +226,7 @@ export default function CheckInPage() {
         notes: '',
       }
       dispatch({ type: 'ADD_PONTO', payload: record })
+      api.post('/api/ponto', record).catch(() => { /* offline fallback */ })
     }
   }, [getLocation, locationConfigured, locationConfig, shift, existingRecord, selectedEmployeeId, today, dispatch])
 
@@ -243,18 +245,17 @@ export default function CheckInPage() {
       ? haversineDistance(geo.lat, geo.lng, locationConfig.lat, locationConfig.lng)
       : null
 
-    dispatch({
-      type: 'UPDATE_PONTO',
-      payload: {
-        ...existingRecord,
-        checkOut: now.toISOString(),
-        checkOutLocation: geo,
-        checkOutDistance: dist !== null ? Math.round(dist) : null,
-        workedMinutes,
-        earlyLeaveMinutes,
-        status: earlyLeaveMinutes > 15 ? 'partial' : existingRecord.status,
-      },
-    })
+    const updated = {
+      ...existingRecord,
+      checkOut: now.toISOString(),
+      checkOutLocation: geo,
+      checkOutDistance: dist !== null ? Math.round(dist) : null,
+      workedMinutes,
+      earlyLeaveMinutes,
+      status: earlyLeaveMinutes > 15 ? 'partial' : existingRecord.status,
+    }
+    dispatch({ type: 'UPDATE_PONTO', payload: updated })
+    api.put(`/api/ponto/${updated.id}`, updated).catch(() => { /* offline fallback */ })
   }, [getLocation, locationConfigured, locationConfig, existingRecord, dispatch])
 
   // ── Render ───────────────────────────────────────────────────────

@@ -1,11 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useApp } from '@/store/AppContext'
+import { useToast } from '@/components/ui/Toast'
 import { ArrowLeftRight, Check, X, Clock, Plus } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { ShiftSwapRequest } from '@/types'
 
 export default function TrocaTurnoPage() {
   const { state, dispatch } = useApp()
+  const { toast } = useToast()
   const role = state.currentUser.role
   const loggedEmployeeId = state.currentUser.employeeId || ''
   const [showNewRequest, setShowNewRequest] = useState(false)
@@ -62,8 +64,10 @@ export default function TrocaTurnoPage() {
       await api.post('/api/shift-swaps', request)
       const fresh = await api.get<ShiftSwapRequest[]>('/api/shift-swaps')
       dispatch({ type: 'SET_SHIFT_SWAPS', payload: fresh })
+      toast('success', 'Solicitacao enviada!')
     } catch {
       dispatch({ type: 'ADD_SHIFT_SWAP', payload: request })
+      toast('error', 'Erro ao enviar solicitacao. Salvo localmente.')
     }
     setShowNewRequest(false)
     setTargetId('')
@@ -91,6 +95,7 @@ export default function TrocaTurnoPage() {
           resolvedBy: loggedEmployeeId,
         },
       })
+      toast('error', 'Erro ao resolver troca. Atualizado localmente.')
     }
   }
 

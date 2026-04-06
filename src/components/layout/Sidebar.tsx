@@ -149,6 +149,7 @@ const navByRole: Record<UserRole, NavEntry[]> = {
     {
       label: 'Meu Turno', icon: CalendarDays, items: [
         { label: 'Escala', icon: CalendarDays, to: '/minha-area' },
+        { label: 'Convocacoes', icon: Bell, to: '/convocacoes' },
         { label: 'Check-in', icon: MapPin, to: '/checkin' },
         { label: 'Disponib.', icon: Clock, to: '/disponibilidade' },
         { label: 'Ferias', icon: Palmtree, to: '/ferias' },
@@ -168,7 +169,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   colaborador: 'Colaborador',
 }
 
-function NavGroupItem({ group, onNavigate }: { group: NavGroup; onNavigate: () => void }) {
+function NavGroupItem({ group, onNavigate, badgeCounts = {} }: { group: NavGroup; onNavigate: () => void; badgeCounts?: Record<string, number> }) {
   const location = useLocation()
   const isAnyActive = group.items.some(item => location.pathname === item.to)
   const [open, setOpen] = useState(isAnyActive)
@@ -207,7 +208,12 @@ function NavGroupItem({ group, onNavigate }: { group: NavGroup; onNavigate: () =
               }
             >
               <Icon className="h-4 w-4 shrink-0" />
-              <span>{label}</span>
+              <span className="flex-1">{label}</span>
+              {badgeCounts[to] ? (
+                <span className="flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-warning px-1 text-[10px] font-bold text-warning-foreground leading-none">
+                  {badgeCounts[to]}
+                </span>
+              ) : null}
             </NavLink>
           ))}
         </div>
@@ -221,6 +227,7 @@ export function Sidebar() {
   const { state, dispatch } = useApp()
   const navigate = useNavigate()
   const role = state.currentUser.role
+  const pendingConvocations = state.pendingConvocationsCount
 
   const entries = useMemo(() => navByRole[role] || navByRole.colaborador, [role])
 
@@ -300,7 +307,12 @@ export function Sidebar() {
           <div className="space-y-0.5">
             {entries.map((entry) =>
               isGroup(entry) ? (
-                <NavGroupItem key={entry.label} group={entry} onNavigate={closeMobile} />
+                <NavGroupItem
+                  key={entry.label}
+                  group={entry}
+                  onNavigate={closeMobile}
+                  badgeCounts={pendingConvocations > 0 ? { '/convocacoes': pendingConvocations } : {}}
+                />
               ) : (
                 <NavLink
                   key={entry.to}
@@ -317,7 +329,12 @@ export function Sidebar() {
                   }
                 >
                   <entry.icon className="h-[18px] w-[18px] shrink-0" />
-                  <span>{entry.label}</span>
+                  <span className="flex-1">{entry.label}</span>
+                  {entry.to === '/convocacoes' && pendingConvocations > 0 && (
+                    <span className="flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-warning px-1 text-[10px] font-bold text-warning-foreground leading-none">
+                      {pendingConvocations}
+                    </span>
+                  )}
                 </NavLink>
               ),
             )}

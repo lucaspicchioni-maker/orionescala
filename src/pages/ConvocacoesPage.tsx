@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Bell, CheckCircle, XCircle, Clock, RefreshCw, Users, Loader2 } from 'lucide-react'
+import { Bell, CheckCircle, XCircle, Clock, RefreshCw, Users, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { MetricCard } from '@/components/ui/MetricCard'
@@ -34,9 +34,12 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'succe
 
 export default function ConvocacoesPage() {
   const { state } = useApp()
+  const role = state.currentUser.role
+  const loggedEmployeeId = state.currentUser.employeeId || ''
   const [weekStart, setWeekStart] = useState(state.currentWeek)
   const [convocations, setConvocations] = useState<ConvocationItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [responding, setResponding] = useState<string | null>(null)
 
   async function loadConvocations() {
     if (!hasToken()) return
@@ -77,6 +80,24 @@ export default function ConvocacoesPage() {
     }
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b))
   }, [convocations])
+
+  async function respond(id: string, response: 'sim' | 'nao') {
+    setResponding(id)
+    try {
+      await api.post(`/api/convocations/${id}/respond`, { response })
+      await loadConvocations()
+    } catch {
+      // ignore
+    } finally {
+      setResponding(null)
+    }
+  }
+
+  // For collaborador: filter to own convocations
+  const myPending = useMemo(() => {
+    if (role !== 'colaborador' || !loggedEmployeeId) return [] as ConvocationItem[]
+    return convocations.filter(c => c.employeeId === loggedEmployeeId && c.status === 'pending')
+  }, [convocations, role, loggedEmployeeId])
 
   function formatDate(dateStr: string): string {
     const d = new Date(dateStr + 'T12:00:00')
@@ -120,6 +141,48 @@ export default function ConvocacoesPage() {
         <MetricCard label="Pendentes" value={stats.pending} icon={Clock} trend={stats.pending > 0 ? 'down' : 'stable'} />
         <MetricCard label="Ausentes" value={stats.absent} icon={XCircle} trend={stats.absent > 0 ? 'down' : 'up'} />
       </div>
+
+      {/* Collaborator: my pending convocations */}
+      {role === 'colaborador' && myPending.length > 0 && (
+        <Card variant="glass" className="border border-warning/40">
+          <h3 className="mb-3 text-sm font-semibold text-warning flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Voce tem {myPending.length} convocacao{myPending.length > 1 ? 'es' : ''} pendente{myPending.length > 1 ? 's' : ''}
+          </h3>
+          <div className="space-y-2">
+            {myPending.map(c => (
+              <div key={c.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-card px-3 py-2.5">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{c.shiftDate} &mdash; {c.shiftStart} ate {c.shiftEnd}</p>
+                  {c.deadline && (
+                    <p className="text-xs text-muted-foreground">
+                      Prazo: {new Date(c.deadline).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => respond(c.id, 'sim')}
+                    disabled={responding === c.id}
+                    className="flex items-center gap-1 rounded-lg bg-success/20 px-3 py-1.5 text-xs font-semibold text-success hover:bg-success/30 transition-colors disabled:opacity-50"
+                  >
+                    <ThumbsUp className="h-3.5 w-3.5" />
+                    Confirmar
+                  </button>
+                  <button
+                    onClick={() => respond(c.id, 'nao')}
+                    disabled={responding === c.id}
+                    className="flex items-center gap-1 rounded-lg bg-destructive/20 px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/30 transition-colors disabled:opacity-50"
+                  >
+                    <ThumbsDown className="h-3.5 w-3.5" />
+                    Recusar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {loading && (
         <div className="flex items-center justify-center py-12">

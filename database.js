@@ -590,6 +590,7 @@ export const ponto = {
 export const convocations = {
   getByWeek: (weekStart) => db.prepare('SELECT * FROM convocations WHERE week_start=? ORDER BY shift_date, shift_start').all(weekStart),
   getByEmployee: (employeeId) => db.prepare('SELECT * FROM convocations WHERE employee_id=? ORDER BY shift_date DESC').all(employeeId),
+  getById: (id) => db.prepare('SELECT * FROM convocations WHERE id=?').get(id),
   getByToken: (token) => db.prepare('SELECT * FROM convocations WHERE token=?').get(token),
   getExpiredPending: () => db.prepare(`SELECT * FROM convocations WHERE status='pending' AND deadline < datetime('now')`).all(),
   getPendingPresence: () => db.prepare(`SELECT * FROM convocations WHERE status='confirmed' AND presence_deadline < datetime('now') AND presence_response IS NULL AND presence_notif_sent_at IS NOT NULL`).all(),
@@ -810,6 +811,7 @@ export const feedbacks = {
 export const shiftFeedbacks = {
   getByWeek: (weekStart) => db.prepare('SELECT * FROM shift_feedbacks WHERE week_start=?').all(weekStart),
   getByEmployee: (employeeId) => db.prepare('SELECT * FROM shift_feedbacks WHERE employee_id=? ORDER BY date DESC').all(employeeId),
+  getByEmployeeDate: (employeeId, date) => db.prepare('SELECT id FROM shift_feedbacks WHERE employee_id=? AND date=?').get(employeeId, date),
   upsert: (data) => {
     const id = data.id || randomUUID()
     db.prepare(`INSERT INTO shift_feedbacks

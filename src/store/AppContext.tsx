@@ -59,6 +59,7 @@ export interface AppState {
   currentUser: { role: 'colaborador' | 'supervisor' | 'gerente' | 'rh' | 'admin'; name: string; employeeId?: string }
   loading: boolean
   apiReady: boolean
+  pendingConvocationsCount: number
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────
@@ -113,6 +114,7 @@ type Action =
   | { type: 'SET_ONBOARDING_DONE'; payload: boolean }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_API_READY'; payload: boolean }
+  | { type: 'SET_PENDING_CONVOCATIONS'; payload: number }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -198,6 +200,7 @@ function getInitialState(): AppState {
     currentUser,
     loading: false,
     apiReady: false,
+    pendingConvocationsCount: 0,
   }
 }
 
@@ -348,6 +351,8 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, loading: action.payload }
     case 'SET_API_READY':
       return { ...state, apiReady: action.payload }
+    case 'SET_PENDING_CONVOCATIONS':
+      return { ...state, pendingConvocationsCount: action.payload }
     default:
       return state
   }
@@ -371,18 +376,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!hasToken()) return
     dispatch({ type: 'SET_LOADING', payload: true })
     try {
-      const [emps, schedulesList, pontoList, annList, swapList] = await Promise.all([
+      const [emps, schedulesList, pontoList, annList, swapList, waCfg, locCfg, goldenCfg] = await Promise.all([
         api.get<Employee[]>('/api/employees').catch(() => null),
         api.get<WeekSchedule[]>('/api/schedules').catch(() => null),
         api.get<PontoRecord[]>('/api/ponto').catch(() => null),
         api.get<Announcement[]>('/api/announcements').catch(() => null),
         api.get<ShiftSwapRequest[]>('/api/shift-swaps').catch(() => null),
+        api.get<WhatsAppConfig>('/api/data/whatsapp-config').catch(() => null),
+        api.get<LocationConfig>('/api/data/location-config').catch(() => null),
+        api.get<GoldenRule[]>('/api/data/golden-rules').catch(() => null),
       ])
       if (emps) dispatch({ type: 'SET_EMPLOYEES', payload: emps })
       if (schedulesList) dispatch({ type: 'SET_SCHEDULES', payload: schedulesList })
       if (pontoList) dispatch({ type: 'SET_PONTO_RECORDS', payload: pontoList })
       if (annList) dispatch({ type: 'SET_ANNOUNCEMENTS', payload: annList })
       if (swapList) dispatch({ type: 'SET_SHIFT_SWAPS', payload: swapList })
+      if (waCfg) dispatch({ type: 'SET_WHATSAPP_CONFIG', payload: waCfg })
+      if (locCfg) dispatch({ type: 'SET_LOCATION_CONFIG', payload: locCfg })
+      if (goldenCfg) dispatch({ type: 'SET_GOLDEN_RULES', payload: goldenCfg })
+      // Load pending convocations count for collaborador
+      const currentUser = loadFromStorage<AppState['currentUser']>(LS_CURRENT_USER, { role: 'colaborador', name: '' })
+      if (currentUser.role === 'colaborador' && currentUser.employeeId) {
+        const weekStart = getMonday()
+        api.get<{ status: string; employeeId: string }[]>(`/api/convocations/${weekStart}`).then(convs => {
+          const count = convs.filter(c => c.status === 'pending' && c.employeeId === currentUser.employeeId).length
+          dispatch({ type: 'SET_PENDING_CONVOCATIONS', payload: count })
+        }).catch(() => {})
+      }
       dispatch({ type: 'SET_API_READY', payload: true })
     } catch {
       // API not available, use local data

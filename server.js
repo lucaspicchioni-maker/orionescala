@@ -588,6 +588,38 @@ app.post('/api/convocations/presence', (req, res) => {
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
+// Authenticated: collaborator responds to own convocation by id
+app.post('/api/convocations/:id/respond', (req, res) => {
+  try {
+    const { response } = req.body
+    if (!['sim', 'nao'].includes(response)) {
+      return res.status(400).json({ error: 'Resposta deve ser sim ou nao' })
+    }
+    const c = convocations.getById(req.params.id)
+    if (!c) return res.status(404).json({ error: 'Convocacao nao encontrada' })
+
+    // Only the own collaborator (or managers) can respond
+    const user = req.user
+    if (user.role === 'colaborador' && c.employee_id !== user.employeeId) {
+      return res.status(403).json({ error: 'Sem permissao' })
+    }
+
+    if (c.status !== 'pending') {
+      return res.json({ ok: true, alreadyResponded: true, status: c.status })
+    }
+
+    const now = new Date()
+    const deadline = new Date(c.deadline)
+    if (now > deadline) {
+      return res.json({ ok: false, expired: true, status: c.status })
+    }
+
+    const newStatus = response === 'sim' ? 'confirmed' : 'declined'
+    convocations.updateStatus(c.id, newStatus, response)
+    res.json({ ok: true, status: newStatus })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
 // ── App Data (generic KV) ───────────────────────────────────────────────
 
 const ALLOWED_KV_KEYS = new Set(['settings', 'whatsapp-config', 'location-config', 'notification-prefs', 'golden-rules'])
@@ -947,7 +979,7 @@ app.get('/api/shift-feedbacks/week/:weekStart', (req, res) => {
 
 app.post('/api/shift-feedbacks', (req, res) => {
   try {
-    const { employeeId, weekStart, rating } = req.body
+    const { employeeId, date, weekStart, rating } = req.body
     if (!employeeId) return res.status(400).json({ error: 'employeeId obrigatorio' })
     if (!weekStart || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
       return res.status(400).json({ error: 'weekStart invalido (YYYY-MM-DD)' })
@@ -955,7 +987,10 @@ app.post('/api/shift-feedbacks', (req, res) => {
     if (rating !== undefined && (typeof rating !== 'number' || rating < 1 || rating > 5)) {
       return res.status(400).json({ error: 'rating deve ser numero entre 1 e 5' })
     }
-    const id = shiftFeedbacks.upsert(req.body)
+    const feedbackDate = date || new Date().toISOString().split('T')[0]
+    const existing = shiftFeedbacks.getByEmployeeDate(employeeId, feedbackDate)
+    if (existing) return res.status(409).json({ error: 'Voce ja avaliou seu turno hoje' })
+    const id = shiftFeedbacks.upsert({ ...req.body, date: feedbackDate })
     res.json({ id })
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { CalendarDays, Send, Check } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { useApp } from '@/store/AppContext'
+import { useToast } from '@/components/ui/Toast'
 import { HOUR_RANGES } from '@/types'
 import type { AvailabilityDeclaration, AvailabilitySlot, DayOfWeek } from '@/types'
 import { cn } from '@/lib/utils'
@@ -43,6 +44,7 @@ function formatWeekLabel(weekStart: string): string {
 
 export default function DisponibilidadePage() {
   const { state, dispatch } = useApp()
+  const { toast } = useToast()
   const loggedEmployeeId = state.currentUser.employeeId || ''
   const loggedEmployee = state.employees.find(e => e.id === loggedEmployeeId)
 
@@ -145,8 +147,10 @@ export default function DisponibilidadePage() {
       await api.put('/api/availabilities', declaration)
       const fresh = await api.get<AvailabilityDeclaration[]>(`/api/availabilities/week/${weekStart}`)
       dispatch({ type: 'SET_AVAILABILITIES', payload: fresh })
+      toast('success', 'Disponibilidade salva!')
     } catch {
       dispatch({ type: 'ADD_AVAILABILITY', payload: declaration })
+      toast('error', 'Erro ao salvar disponibilidade. Salvo localmente.')
     }
   }
 

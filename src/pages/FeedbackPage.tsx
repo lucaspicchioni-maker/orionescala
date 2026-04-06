@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useApp } from '@/store/AppContext'
+import { useToast } from '@/components/ui/Toast'
 import { Star, MessageSquare, Plus, ChevronDown, ChevronUp } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { FeedbackRecord } from '@/types'
@@ -32,6 +33,7 @@ function StarRating({ value, onChange, readonly }: { value: number; onChange?: (
 
 export default function FeedbackPage() {
   const { state, dispatch } = useApp()
+  const { toast } = useToast()
   const role = state.currentUser.role
   const loggedEmployeeId = state.currentUser.employeeId || ''
   const [showForm, setShowForm] = useState(false)
@@ -98,8 +100,10 @@ export default function FeedbackPage() {
       await api.post('/api/feedbacks', record)
       const fresh = await api.get<FeedbackRecord[]>(`/api/feedbacks/week/${state.currentWeek}`)
       dispatch({ type: 'SET_FEEDBACKS', payload: fresh })
+      toast('success', 'Feedback enviado!')
     } catch {
       dispatch({ type: 'ADD_FEEDBACK', payload: record })
+      toast('error', 'Erro ao enviar feedback. Salvo localmente.')
     }
     setShowForm(false)
     setFormEmployee('')
