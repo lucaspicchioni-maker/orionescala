@@ -377,31 +377,31 @@ for (const sql of migrations) {
 
 // ── Seed default users if none exist ────────────────────────────────────────
 
-const genPass = (envKey) => process.env[envKey] || randomUUID().slice(0, 12)
+const genPass = (envKey, fallback) => process.env[envKey] || fallback
 
 const userCount = db.prepare('SELECT COUNT(*) as c FROM users').get()
 if (userCount.c === 0) {
   const defaultUsers = [
-    { name: 'Admin',      role: 'admin',      password: genPass('SEED_ADMIN_PASSWORD') },
-    { name: 'Gerente',    role: 'gerente',     password: genPass('SEED_GERENTE_PASSWORD') },
-    { name: 'Supervisor', role: 'supervisor',  password: genPass('SEED_SUPERVISOR_PASSWORD') },
-    { name: 'RH',         role: 'rh',          password: genPass('SEED_RH_PASSWORD') },
-    { name: 'Vivian',     role: 'gerente',     password: genPass('SEED_VIVIAN_PASSWORD') },
+    { name: 'Lucas',      role: 'admin',      password: genPass('SEED_ADMIN_PASSWORD',      'lucas123') },
+    { name: 'Vivian',     role: 'gerente',     password: genPass('SEED_VIVIAN_PASSWORD',     'vivian123') },
+    { name: 'Supervisor', role: 'supervisor',  password: genPass('SEED_SUPERVISOR_PASSWORD', 'super123') },
+    { name: 'RH',         role: 'rh',          password: genPass('SEED_RH_PASSWORD',         'rh1234') },
+    { name: 'Miguel',     role: 'colaborador', password: genPass('SEED_MIGUEL_PASSWORD',     'miguel123') },
+    { name: 'Anna',       role: 'colaborador', password: genPass('SEED_ANNA_PASSWORD',       'anna1234') },
   ]
   const insert = db.prepare('INSERT INTO users (id, name, role, password_hash) VALUES (?, ?, ?, ?)')
-  console.log('✅ Usuários padrão criados — GUARDE ESTAS SENHAS:')
+  console.log('✅ Usuários padrão criados:')
   for (const u of defaultUsers) {
     insert.run(randomUUID(), u.name, u.role, bcrypt.hashSync(u.password, 10))
     console.log(`   ${u.name} (${u.role}): ${u.password}`)
   }
-  console.log('   Configure variaveis SEED_*_PASSWORD no Railway para senhas fixas.')
 }
 
 // ── Garantir que Vivian existe com role gerente ──────────────────────────────
 
 const vivian = db.prepare("SELECT * FROM users WHERE name = 'Vivian' COLLATE NOCASE").get()
 if (!vivian) {
-  const password = genPass('SEED_VIVIAN_PASSWORD')
+  const password = genPass('SEED_VIVIAN_PASSWORD', 'vivian123')
   db.prepare('INSERT INTO users (id, name, role, password_hash) VALUES (?, ?, ?, ?)').run(
     randomUUID(), 'Vivian', 'gerente', bcrypt.hashSync(password, 10)
   )
