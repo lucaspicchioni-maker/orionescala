@@ -11,7 +11,6 @@ import {
   Calculator,
   Activity,
   Megaphone,
-  Star,
   Smile,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'

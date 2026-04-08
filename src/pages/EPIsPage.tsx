@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, HardHat, AlertTriangle, RotateCcw, Trash2 } from 'lucide-react'
+import { Plus, AlertTriangle, RotateCcw, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { useApp } from '@/store/AppContext'
-import { cn } from '@/lib/utils'
 import type { EPIRecord } from '@/types'
 
 const EPI_TYPES = [
@@ -22,8 +21,8 @@ const EPI_TYPES = [
   { value: 'outro', label: 'Outro' },
 ]
 
-function getEpiStatus(epi: EPIRecord): { label: string; variant: 'success' | 'warning' | 'destructive' | 'secondary' } {
-  if (epi.returnedAt) return { label: 'Devolvido', variant: 'secondary' }
+function getEpiStatus(epi: EPIRecord): { label: string; variant: 'success' | 'warning' | 'destructive' | 'muted' } {
+  if (epi.returnedAt) return { label: 'Devolvido', variant: 'muted' }
   if (!epi.expiresAt) return { label: 'Ativo', variant: 'success' }
   const expires = new Date(epi.expiresAt)
   const now = new Date()
