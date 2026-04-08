@@ -483,7 +483,7 @@ app.put('/api/ponto/:id', requireRole('admin', 'gerente', 'supervisor'), (req, r
 
 // ── Convocations ────────────────────────────────────────────────────────
 
-app.get('/api/convocations/:weekStart', (req, res) => {
+app.get('/api/convocations/:weekStart', requireRole('admin', 'gerente', 'supervisor', 'colaborador', 'rh'), (req, res) => {
   try {
     const all = convocations.getByWeek(req.params.weekStart)
     const allEmps = employees.getAll()
@@ -1161,6 +1161,8 @@ app.post('/api/surveys', (req, res) => {
   try {
     const { week, employeeId, score, highlights, improvements } = req.body
     if (!week || !employeeId || !score) return res.status(400).json({ error: 'Dados incompletos' })
+    const existing = climateSurveys.getByEmployeeAndWeek(employeeId, week)
+    if (existing) return res.status(409).json({ error: 'Voce ja respondeu esta semana' })
     const id = climateSurveys.create({ week, employeeId, score, highlights, improvements })
     res.json({ id })
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
