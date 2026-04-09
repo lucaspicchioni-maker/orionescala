@@ -1294,8 +1294,6 @@ function calculateShiftHours(start, end) {
   return (endMin - startMin) / 60
 }
 
-setInterval(runAutomatedJobs, 60000)
-
 // ── Static files ────────────────────────────────────────────────────────
 
 if (!fs.existsSync(indexPath)) {
@@ -1312,9 +1310,15 @@ app.use((_req, res) => {
   }
 })
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Orion Escala running on port ${PORT}`)
-  console.log(`Claude AI: ${anthropic ? 'enabled' : 'disabled (no API key)'}`)
-  // Run jobs once on startup
-  runAutomatedJobs()
-})
+// Exporta app + helpers pra testes poderem usar sem iniciar o servidor
+export { app, parseSlotMinutes, computeWeekStart }
+
+// Só inicia o servidor e jobs se não estiver em modo teste
+if (process.env.NODE_ENV !== 'test') {
+  setInterval(runAutomatedJobs, 60000)
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Orion Escala running on port ${PORT}`)
+    console.log(`Claude AI: ${anthropic ? 'enabled' : 'disabled (no API key)'}`)
+    runAutomatedJobs()
+  })
+}

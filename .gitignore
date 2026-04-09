@@ -20,6 +20,10 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 
+# Test artifacts
+tests/.tmp/
+coverage/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
