@@ -27,6 +27,29 @@
   --color-sidebar-accent: hsl(266 84% 84%);
   --color-sidebar-border: hsl(0 0% 11%);
 
+  /* ── Legacy HSL components for inline hsl(var(--x)) usage (recharts etc.)
+       Estas são mantidas SÓ para o padrão hsl(var(--nome)) dentro de
+       props style={{...}} no JSX. Classes Tailwind continuam usando as
+       var(--color-*) acima. NUNCA remova sem grep por hsl(var(-- */
+  --background: 0 0% 0%;
+  --foreground: 0 0% 93.7%;
+  --card: 0 0% 6%;
+  --card-foreground: 0 0% 93.7%;
+  --primary: 69 100% 59%;
+  --primary-foreground: 0 0% 0%;
+  --secondary: 0 0% 9%;
+  --secondary-foreground: 0 0% 93.7%;
+  --accent: 266 84% 84%;
+  --accent-foreground: 0 0% 0%;
+  --muted: 0 0% 14%;
+  --muted-foreground: 210 2% 81%;
+  --border: 0 0% 13%;
+  --input: 0 0% 13%;
+  --ring: 69 100% 59%;
+  --destructive: 0 84% 60%;
+  --success: 142 71% 45%;
+  --warning: 48 96% 53%;
+
   --color-chart-1: #DFFF2D;
   --color-chart-2: #D1B5F6;
   --color-chart-3: #7CB9E8;

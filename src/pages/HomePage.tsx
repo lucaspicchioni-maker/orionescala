@@ -9,6 +9,7 @@ import {
   Users,
   Zap,
   Target,
+  DollarSign,
 } from 'lucide-react'
 import {
   BarChart,
@@ -376,9 +377,9 @@ export default function HomePage() {
           )}
 
           {/* ── Charts ── */}
-          {weeklyAttendanceData.length > 0 && (
-            <Card>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Presenca Semanal (%)</h3>
+          <Card>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Presenca Semanal (%)</h3>
+            {weeklyAttendanceData.length > 0 ? (
               <ResponsiveContainer width="100%" height={190}>
                 <BarChart data={weeklyAttendanceData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border)/0.4)" />
@@ -391,12 +392,18 @@ export default function HomePage() {
                   <Bar dataKey="presence" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
-            </Card>
-          )}
+            ) : (
+              <div className="flex h-[190px] flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+                <CalendarDays className="h-8 w-8 opacity-30" />
+                <p className="text-sm">Sem escala publicada para esta semana</p>
+                <Link to="/escala" className="text-xs font-medium text-primary hover:underline">Ir para Escala →</Link>
+              </div>
+            )}
+          </Card>
 
-          {dailyCostData.length > 0 && (
-            <Card>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Custo Operacional por Dia (R$)</h3>
+          <Card>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Custo Operacional por Dia (R$)</h3>
+            {dailyCostData.length > 0 ? (
               <ResponsiveContainer width="100%" height={190}>
                 <AreaChart data={dailyCostData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                   <defs>
@@ -415,12 +422,18 @@ export default function HomePage() {
                   <Area type="monotone" dataKey="custo" stroke="#22c55e" strokeWidth={2} fill="url(#costGradient)" />
                 </AreaChart>
               </ResponsiveContainer>
-            </Card>
-          )}
+            ) : (
+              <div className="flex h-[190px] flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+                <DollarSign className="h-8 w-8 opacity-30" />
+                <p className="text-sm">Sem dados de custo para esta semana</p>
+                <p className="text-xs">Publique uma escala para ver os custos aparecerem aqui.</p>
+              </div>
+            )}
+          </Card>
 
-          {productivityTrendData.length > 0 && (
-            <Card>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tendencia de Pedidos (ultimas semanas)</h3>
+          <Card>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tendencia de Pedidos (ultimas semanas)</h3>
+            {productivityTrendData.length > 0 ? (
               <ResponsiveContainer width="100%" height={180}>
                 <LineChart data={productivityTrendData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border)/0.4)" />
@@ -433,8 +446,14 @@ export default function HomePage() {
                   <Line type="monotone" dataKey="pedidos" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 4 }} activeDot={{ r: 6 }} />
                 </LineChart>
               </ResponsiveContainer>
-            </Card>
-          )}
+            ) : (
+              <div className="flex h-[180px] flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+                <Zap className="h-8 w-8 opacity-30" />
+                <p className="text-sm">Sem histórico de produtividade</p>
+                <Link to="/produtividade" className="text-xs font-medium text-primary hover:underline">Lançar dados →</Link>
+              </div>
+            )}
+          </Card>
         </>
       )}
 
