@@ -20,6 +20,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 const PORT = process.env.PORT || 3000
+const SERVER_STARTED_AT = new Date().toISOString()
 const distPath = path.join(__dirname, 'dist')
 const indexPath = path.join(distPath, 'index.html')
 const APP_URL = process.env.APP_URL || 'https://orionescala-production.up.railway.app'
@@ -227,6 +228,16 @@ function savePontoAtomic(record) {
 
 app.get('/health', (_req, res) => {
   res.status(200).send('ok')
+})
+
+// Versão do build — useful pra verificar rapidamente qual commit está em produção
+const BUILD_VERSION = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT || 'dev'
+app.get('/version', (_req, res) => {
+  res.status(200).json({
+    version: BUILD_VERSION.slice(0, 12),
+    startedAt: SERVER_STARTED_AT,
+    node: process.version,
+  })
 })
 
 // ── Auth Routes ─────────────────────────────────────────────────────────

@@ -460,22 +460,39 @@ if (empCount.c === 0) {
 // ── Linkar users colaborador ao employee correspondente por nome ──────────
 // Sem isso, o middleware requireOwnerOrRole bloqueia colaboradores nos
 // proprios dados (req.user.employeeId === null nao bate com resourceId).
-const unlinkedColabs = db.prepare(`
-  SELECT u.id as user_id, u.name as user_name, e.id as employee_id
-  FROM users u
-  JOIN employees e ON LOWER(e.name) = LOWER(u.name)
-  WHERE u.role = 'colaborador' AND (u.employee_id IS NULL OR u.employee_id = '')
-`).all()
+try {
+  const allColabUsers = db.prepare(
+    "SELECT id, name, employee_id FROM users WHERE role = 'colaborador'"
+  ).all()
+  console.log(`🔍 Link diagnostic: ${allColabUsers.length} user(s) colaborador no banco`)
 
-if (unlinkedColabs.length > 0) {
-  const linkStmt = db.prepare('UPDATE users SET employee_id = ? WHERE id = ?')
-  const linkMany = db.transaction((rows) => {
-    for (const row of rows) {
-      linkStmt.run(row.employee_id, row.user_id)
+  const unlinkedColabs = db.prepare(`
+    SELECT u.id as user_id, u.name as user_name, e.id as employee_id
+    FROM users u
+    JOIN employees e ON LOWER(TRIM(e.name)) = LOWER(TRIM(u.name))
+    WHERE u.role = 'colaborador' AND (u.employee_id IS NULL OR u.employee_id = '')
+  `).all()
+
+  console.log(`🔍 Link diagnostic: ${unlinkedColabs.length} unlinked colaborador(es) found via JOIN`)
+
+  if (unlinkedColabs.length > 0) {
+    const linkStmt = db.prepare('UPDATE users SET employee_id = ? WHERE id = ?')
+    const linkMany = db.transaction((rows) => {
+      for (const row of rows) {
+        linkStmt.run(row.employee_id, row.user_id)
+      }
+    })
+    linkMany(unlinkedColabs)
+    console.log(`✅ ${unlinkedColabs.length} user(s) colaborador linkados a employees: ${unlinkedColabs.map(r => r.user_name).join(', ')}`)
+  } else if (allColabUsers.length > 0) {
+    // Existem colaboradores mas nao achou pra linkar — diagnostico detalhado
+    for (const cu of allColabUsers) {
+      const empMatch = db.prepare('SELECT id, name FROM employees WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))').get(cu.name)
+      console.log(`🔍   ${cu.name} (emp_id=${cu.employee_id || 'NULL'}) -> employee match: ${empMatch ? empMatch.id : 'NONE'}`)
     }
-  })
-  linkMany(unlinkedColabs)
-  console.log(`✅ ${unlinkedColabs.length} user(s) colaborador linkados a employees: ${unlinkedColabs.map(r => r.user_name).join(', ')}`)
+  }
+} catch (err) {
+  console.error('❌ Erro ao linkar users colaborador a employees:', err?.message || err)
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
