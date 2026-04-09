@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useApp } from '@/store/AppContext'
 import { useToast } from '@/components/ui/Toast'
-import { Clock, TrendingUp, TrendingDown, Minus, Plus, RefreshCw, Download } from 'lucide-react'
+import { Clock, TrendingUp, TrendingDown, Minus, Plus, RefreshCw, Download, Info } from 'lucide-react'
 import { api } from '@/lib/api'
 import { todayBR } from '@/lib/utils'
 import type { BancoHorasEntry } from '@/types'
@@ -224,20 +224,32 @@ export default function BancoHorasPage() {
           <h2 className="text-lg font-bold text-foreground">Banco de Horas</h2>
           <p className="text-sm text-muted-foreground">Controle de horas extras e deficit</p>
         </div>
-        {role !== 'colaborador' && (
-          <div className="flex gap-2">
-            <button onClick={syncFromPonto} className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-2 text-xs text-foreground">
-              <RefreshCw className="h-3.5 w-3.5" /> Sincronizar
-            </button>
-            <button onClick={recalcularTodos} className="flex items-center gap-1 rounded-lg bg-warning/20 px-3 py-2 text-xs text-warning hover:bg-warning/30 transition-colors">
-              <RefreshCw className="h-3.5 w-3.5" /> Recalcular Todos
-            </button>
-            <button onClick={() => setShowAdjust(!showAdjust)} className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground">
-              <Plus className="h-3.5 w-3.5" /> Ajuste
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* Aviso legal: banco de horas informativo */}
+      <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-warning-foreground">
+        <Info className="h-4 w-4 flex-shrink-0 mt-0.5 text-warning" />
+        <div className="flex-1 space-y-0.5">
+          <div className="font-semibold text-warning">Aviso — Este banco de horas é informativo</div>
+          <div className="text-muted-foreground">
+            Contrato intermitente (CLT Art. 452-A) não gera saldo negativo. O cálculo oficial de folha, adicional noturno, DSR proporcional, férias e 13º é feito pelo Departamento Pessoal a partir dos registros de ponto, não deste painel.
+          </div>
+        </div>
+      </div>
+
+      {role !== 'colaborador' && (
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={syncFromPonto} className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-2 text-xs text-foreground">
+            <RefreshCw className="h-3.5 w-3.5" /> Sincronizar
+          </button>
+          <button onClick={recalcularTodos} className="flex items-center gap-1 rounded-lg bg-warning/20 px-3 py-2 text-xs text-warning hover:bg-warning/30 transition-colors">
+            <RefreshCw className="h-3.5 w-3.5" /> Recalcular Todos
+          </button>
+          <button onClick={() => setShowAdjust(!showAdjust)} className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground">
+            <Plus className="h-3.5 w-3.5" /> Ajuste
+          </button>
+        </div>
+      )}
 
       {/* Team summary (leader/gerente) */}
       {role !== 'colaborador' && (

@@ -658,10 +658,18 @@ export const convocations = {
   getPendingPresence: () => db.prepare(`SELECT * FROM convocations WHERE status='confirmed' AND presence_deadline < datetime('now') AND presence_response IS NULL AND presence_notif_sent_at IS NOT NULL`).all(),
   getDuePresenceReminders: () => db.prepare(`SELECT * FROM convocations WHERE status='confirmed' AND presence_notif_sent_at IS NULL AND presence_deadline <= datetime('now', '+2 hours') AND presence_deadline > datetime('now')`).all(),
   create: (data) => {
+    // CLT Art. 452-A §2: prazo mínimo de 24h para resposta
+    // Usamos 24h como default (era 12h antes — não conforme)
     db.prepare(`INSERT OR IGNORE INTO convocations
       (id, employee_id, week_start, shift_date, shift_start, shift_end, token, status, sent_at, deadline, presence_deadline)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now', '+12 hours'), ?)`
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now', '+24 hours'), ?)`
     ).run(data.id, data.employeeId, data.weekStart, data.shiftDate, data.shiftStart, data.shiftEnd, data.token, data.presenceDeadline)
+  },
+  cancelByEmployer: (id, fine, reason) => {
+    db.prepare(`UPDATE convocations
+      SET status='cancelled_by_employer', noshow_fine=?, response=?, responded_at=datetime('now')
+      WHERE id=? AND status IN ('confirmed', 'pending')`
+    ).run(fine, reason || 'cancelled by employer', id)
   },
   updateStatus: (id, status, response) => {
     db.prepare(`UPDATE convocations SET status=?, response=?, responded_at=datetime('now') WHERE id=?`).run(status, response, id)

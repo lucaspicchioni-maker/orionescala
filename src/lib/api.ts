@@ -35,10 +35,27 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Erro desconhecido' }))
-    throw new Error(err.error || `HTTP ${res.status}`)
+    const apiErr = new Error(err.error || `HTTP ${res.status}`) as Error & {
+      status?: number
+      body?: any
+    }
+    apiErr.status = res.status
+    apiErr.body = err
+    throw apiErr
   }
 
   return res.json()
+}
+
+// Type helper para acessar body.blockers/warnings quando vier de 422
+export interface ApiError extends Error {
+  status?: number
+  body?: {
+    error?: string
+    code?: string
+    blockers?: Array<{ rule: string; severity: string; employeeId: string; date: string; message: string }>
+    warnings?: Array<{ rule: string; severity: string; employeeId: string; date: string; message: string }>
+  }
 }
 
 export const api = {

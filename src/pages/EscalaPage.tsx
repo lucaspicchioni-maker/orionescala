@@ -267,6 +267,7 @@ export default function EscalaPage() {
   } | null>(null)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showNotifyPanel, setShowNotifyPanel] = useState(false)
+  const [cltViolations, setCltViolations] = useState<Array<{ rule: string; employeeId: string; date: string; message: string }>>([])
   const [shiftWarning, setShiftWarning] = useState<string | null>(null)
   const [aiSuggestions, setAiSuggestions] = useState<ScheduleSuggestResult | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
@@ -458,7 +459,16 @@ export default function EscalaPage() {
       setShowPublishModal(false)
       setShowNotifyPanel(true)
     } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Erro ao publicar escala')
+      // Verifica se é violação CLT (422) com lista detalhada
+      const apiErr = err as Error & { status?: number; body?: { code?: string; blockers?: Array<{ rule: string; employeeId: string; date: string; message: string }> } }
+      if (apiErr?.status === 422 && apiErr?.body?.code === 'CLT_VIOLATION') {
+        const blockers = apiErr.body.blockers || []
+        setCltViolations(blockers)
+        setShowPublishModal(false)
+        toast('error', `Escala viola ${blockers.length} regra(s) CLT. Ajuste antes de publicar.`)
+      } else {
+        toast('error', err instanceof Error ? err.message : 'Erro ao publicar escala')
+      }
     } finally {
       setIsSaving(false)
     }
@@ -1187,6 +1197,50 @@ export default function EscalaPage() {
               {isSaving ? 'Publicando...' : 'Confirmar e Notificar'}
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* ─── CLT Violations modal ────────────────────────────── */}
+      <Modal
+        open={cltViolations.length > 0}
+        onClose={() => setCltViolations([])}
+      >
+        <div className="space-y-4">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto mb-2 h-10 w-10 text-destructive" />
+            <h3 className="text-lg font-bold text-foreground">
+              Escala viola regras CLT
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ajuste os pontos abaixo antes de publicar
+            </p>
+          </div>
+
+          <div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+            {cltViolations.map((v, idx) => {
+              const empName = employees.find(e => e.id === v.employeeId)?.name || v.employeeId
+              return (
+                <div key={idx} className="rounded border border-destructive/30 bg-card p-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block rounded bg-destructive/20 px-2 py-0.5 text-[11px] font-semibold uppercase text-destructive">
+                      {v.rule}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {v.date} · {empName}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-foreground">{v.message}</p>
+                </div>
+              )
+            })}
+          </div>
+
+          <button
+            onClick={() => setCltViolations([])}
+            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+          >
+            Entendi, ajustar escala
+          </button>
         </div>
       </Modal>
 

@@ -16,6 +16,12 @@ import {
   feedbacks, shiftFeedbacks, badges, announcements, whatsappMessages,
   vacationRequests, epis, climateSurveys,
 } from './database.js'
+import {
+  validateInterjornada, validateDSR,
+  calculateNightMinutes, toCLTNightMinutes, isSundayOrHoliday,
+  validateConvocationAdvanceNotice, calculateCancellationPenalty,
+  clampBalanceForIntermittent,
+} from './cltRules.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -198,7 +204,47 @@ function syncBancoHoras(pontoRecord) {
       console.error(`[syncBancoHoras] ${parseFailures} slot(s) com formato inválido — banco de horas pode estar incorreto para ${pontoRecord.employeeId} em ${pontoRecord.date}`)
     }
 
-    const balanceMinutes = workedMinutes - scheduledMinutes
+    // ── Cálculos CLT: noturno + domingo/feriado + clamp intermitente ─────
+    // Obter contract_type do empregado
+    let contractType = 'clt_intermitente' // default seguro
+    try {
+      const empRow = getDb().prepare('SELECT contract_type FROM employees WHERE id = ?').get(pontoRecord.employeeId)
+      if (empRow?.contract_type) contractType = empRow.contract_type
+    } catch { /* ignora, usa default */ }
+
+    // Adicional noturno: se o ponto tem horário start/end, calcula
+    let nightMinutes = 0
+    if (pontoRecord.checkInTime && pontoRecord.checkOutTime) {
+      // checkInTime pode ser ISO ou HH:MM — normalizar
+      const toHHMM = (v) => {
+        if (typeof v !== 'string') return null
+        if (v.match(/^\d{2}:\d{2}$/)) return v
+        try {
+          const d = new Date(v)
+          return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+        } catch { return null }
+      }
+      const sh = toHHMM(pontoRecord.checkInTime)
+      const eh = toHHMM(pontoRecord.checkOutTime)
+      if (sh && eh) nightMinutes = calculateNightMinutes(sh, eh)
+    }
+    const nightCLTMinutes = Math.round(toCLTNightMinutes(nightMinutes))
+
+    // Domingo/feriado?
+    const sundayOrHoliday = isSundayOrHoliday(pontoRecord.date)
+
+    // Saldo bruto, depois clamp para intermitente
+    const rawBalance = workedMinutes - scheduledMinutes
+    const balanceMinutes = clampBalanceForIntermittent(rawBalance, contractType)
+
+    // Notes com breakdown CLT
+    const notes = [
+      'auto',
+      nightMinutes > 0 ? `noturno:${nightMinutes}min(CLT:${nightCLTMinutes}min)` : null,
+      sundayOrHoliday ? 'dom/feriado+100%' : null,
+      rawBalance < 0 && balanceMinutes === 0 ? `clamp:${rawBalance}` : null,
+    ].filter(Boolean).join(' ')
+
     bancoHoras.upsert({
       employeeId: pontoRecord.employeeId,
       date: pontoRecord.date,
@@ -207,7 +253,7 @@ function syncBancoHoras(pontoRecord) {
       workedMinutes,
       balanceMinutes,
       type: balanceMinutes > 0 ? 'extra' : balanceMinutes < 0 ? 'deficit' : 'regular',
-      notes: 'auto',
+      notes,
     })
   } catch (err) {
     console.error('[syncBancoHoras]', err?.message || err)
@@ -403,13 +449,57 @@ app.post('/api/schedules/:weekStart/publish', requireRole('admin', 'gerente'), (
     const schedule = schedules.getByWeek(weekStart)
     if (!schedule) return res.status(404).json({ error: 'Escala nao encontrada' })
 
-    // Verify minimum 3 days in advance
+    // ── Validação CLT: coleta todos os turnos agrupando slots consecutivos ──
+    const allShifts = []
+    if (schedule.days) {
+      for (const day of schedule.days) {
+        const empHoursMap = {}
+        for (const slot of (day.slots || [])) {
+          for (const assignment of (slot.assignments || [])) {
+            if (assignment.employeeId) {
+              if (!empHoursMap[assignment.employeeId]) empHoursMap[assignment.employeeId] = []
+              empHoursMap[assignment.employeeId].push(slot.hour)
+            }
+          }
+        }
+        for (const [empId, hours] of Object.entries(empHoursMap)) {
+          const sortedHours = hours.sort()
+          let shiftStart = null
+          let prevEnd = null
+          for (const hourRange of sortedHours) {
+            const [start, end] = hourRange.split('-')
+            if (shiftStart === null) { shiftStart = start; prevEnd = end }
+            else if (start === prevEnd) { prevEnd = end }
+            else {
+              allShifts.push({ employeeId: empId, date: day.date, startHour: shiftStart, endHour: prevEnd })
+              shiftStart = start; prevEnd = end
+            }
+          }
+          if (shiftStart !== null) {
+            allShifts.push({ employeeId: empId, date: day.date, startHour: shiftStart, endHour: prevEnd })
+          }
+        }
+      }
+    }
+
+    const interjornadaViolations = validateInterjornada(allShifts)
+    const dsrViolations = validateDSR(allShifts)
+
+    // Blockers = interjornada. DSR é aviso (intermitente).
+    if (interjornadaViolations.length > 0) {
+      return res.status(422).json({
+        error: 'Escala viola regras CLT',
+        code: 'CLT_VIOLATION',
+        blockers: interjornadaViolations,
+        warnings: dsrViolations,
+      })
+    }
+
+    // Verify minimum 3 days in advance (warning informativo)
     const now = new Date()
     const wsDate = new Date(weekStart + 'T00:00:00')
     const diffMs = wsDate.getTime() - now.getTime()
     const diffDays = diffMs / (1000 * 60 * 60 * 24)
-    // Allow publishing if week hasn't started yet or has just started
-    // 3-day advance check (relaxed for testing — warn but don't block)
     const advanceWarning = diffDays < 3
 
     // Mark as published
@@ -514,6 +604,7 @@ app.post('/api/schedules/:weekStart/publish', requireRole('admin', 'gerente'), (
       advanceWarning,
       totalConvocations: messages.length,
       messages,
+      warnings: dsrViolations, // DSR é aviso (intermitente — DSR é proporcional)
     })
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
@@ -686,6 +777,42 @@ app.post('/api/convocations/:id/respond', requireRole('admin', 'gerente', 'super
     const newStatus = response === 'sim' ? 'confirmed' : 'declined'
     convocations.updateStatus(c.id, newStatus, response)
     res.json({ ok: true, status: newStatus })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// Empregador cancela convocação já aceita — dispara multa 50% (Art. 452-A §4)
+app.post('/api/convocations/:id/cancel-by-employer', requireRole('admin', 'gerente'), (req, res) => {
+  try {
+    const { reason } = req.body
+    const c = convocations.getById(req.params.id)
+    if (!c) return res.status(404).json({ error: 'Convocacao nao encontrada' })
+
+    if (c.status !== 'confirmed' && c.status !== 'pending') {
+      return res.status(409).json({ error: `Nao e possivel cancelar convocacao no status ${c.status}` })
+    }
+
+    // Calcular multa: aplicada apenas se já aceita (confirmed).
+    // Pending = cancelamento "grátis".
+    let fine = 0
+    if (c.status === 'confirmed') {
+      const emp = employees.getById ? employees.getById(c.employee_id) : null
+      const hourlyRate = emp?.hourly_rate || 0
+      fine = calculateCancellationPenalty({
+        shiftStartHour: c.shift_start,
+        shiftEndHour: c.shift_end,
+        hourlyRate,
+      })
+    }
+
+    convocations.cancelByEmployer(req.params.id, fine, reason)
+    res.json({
+      ok: true,
+      status: 'cancelled_by_employer',
+      fine,
+      message: fine > 0
+        ? `Convocação cancelada. Multa de R$ ${fine.toFixed(2)} devida ao colaborador (CLT Art. 452-A §4).`
+        : 'Convocação cancelada. Nenhuma multa devida (ainda não havia sido aceita).',
+    })
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
