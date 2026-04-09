@@ -439,7 +439,8 @@ if (!vivian) {
 const empCount = db.prepare('SELECT COUNT(*) as c FROM employees').get()
 if (empCount.c === 0) {
   try {
-    const seedPath = path.join(__dirname, 'data', 'seed-colaboradores.json')
+    // Seeds ficam em /app/seeds/ (fora do volume montado em /app/data/ no Railway)
+    const seedPath = path.join(__dirname, 'seeds', 'seed-colaboradores.json')
     const colaboradores = JSON.parse(fs.readFileSync(seedPath, 'utf-8'))
     const insertEmp = db.prepare(`
       INSERT INTO employees (id, name, role, contract_type, hourly_rate, status)
