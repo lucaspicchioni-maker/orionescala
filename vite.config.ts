@@ -27,8 +27,26 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Assume controle imediato — novo SW não espera abas antigas fecharem
+        skipWaiting: true,
+        clientsClaim: true,
+        // Remove caches de deploys antigos automaticamente
+        cleanupOutdatedCaches: true,
+        // Não cachear o index.html — sempre busca fresco (assim bundles novos
+        // sempre são descobertos). Os bundles em si continuam cacheados pelo
+        // precache (hashados no nome, auto-invalidam em novo build).
+        navigateFallbackDenylist: [/^\/api\//],
+        globPatterns: ['**/*.{js,css,ico,png,svg}'],
         runtimeCaching: [
+          {
+            // index.html nunca fica cacheado — sempre NetworkFirst
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html-cache',
+              expiration: { maxEntries: 1, maxAgeSeconds: 60 },
+            },
+          },
           {
             urlPattern: /\/api\/.*/i,
             handler: 'NetworkFirst',
