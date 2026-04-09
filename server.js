@@ -14,7 +14,7 @@ import {
   users, employees, schedules, ponto, convocations, appData, getDb,
   bancoHoras, productivity, weeklyGoals, shiftSwaps, availabilities,
   feedbacks, shiftFeedbacks, badges, announcements, whatsappMessages,
-  vacationRequests, epis, climateSurveys,
+  vacationRequests, epis, climateSurveys, cltOverrides,
 } from './database.js'
 import {
   validateInterjornada, validateDSR,
@@ -485,14 +485,62 @@ app.post('/api/schedules/:weekStart/publish', requireRole('admin', 'gerente'), (
     const interjornadaViolations = validateInterjornada(allShifts)
     const dsrViolations = validateDSR(allShifts)
 
-    // Blockers = interjornada. DSR é aviso (intermitente).
-    if (interjornadaViolations.length > 0) {
+    // ── Override CLT (admin/gerente pode publicar mesmo com violação) ──
+    // Body: { overrideClt: true, justification: "..." }
+    // Regra: precisa role admin/gerente (requireRole já garante) + justificativa
+    //        não-vazia com no mínimo 10 caracteres.
+    const { overrideClt, justification } = req.body || {}
+    const hasBlockers = interjornadaViolations.length > 0
+
+    if (hasBlockers && !overrideClt) {
       return res.status(422).json({
         error: 'Escala viola regras CLT',
         code: 'CLT_VIOLATION',
         blockers: interjornadaViolations,
         warnings: dsrViolations,
+        canOverride: true, // UI usa isto pra mostrar botão "Publicar mesmo assim"
       })
+    }
+
+    if (hasBlockers && overrideClt) {
+      if (!justification || String(justification).trim().length < 10) {
+        return res.status(400).json({
+          error: 'Justificativa obrigatória (mínimo 10 caracteres) para publicar com violação CLT',
+          code: 'OVERRIDE_REQUIRES_JUSTIFICATION',
+        })
+      }
+
+      // Audit log — rastro legal em reclamatória trabalhista futura
+      try {
+        cltOverrides.create({
+          weekStart,
+          userId: req.user.id,
+          userName: req.user.name,
+          userRole: req.user.role,
+          justification: String(justification).trim(),
+          violations: [...interjornadaViolations, ...dsrViolations],
+        })
+      } catch (auditErr) {
+        console.error('[CLT OVERRIDE] falha ao gravar audit log:', auditErr?.message || auditErr)
+      }
+
+      // Notificação urgente ao RH + outros admins
+      try {
+        const rhUsers = getDb().prepare(
+          "SELECT id FROM users WHERE role IN ('rh', 'admin') AND id != ?"
+        ).all(req.user.id)
+        if (rhUsers.length > 0) {
+          announcements.create({
+            title: `⚠️ Override CLT — Escala ${weekStart}`,
+            body: `${req.user.name} (${req.user.role}) publicou escala com ${interjornadaViolations.length} violação(ões) de interjornada.\n\nJustificativa: ${String(justification).trim()}\n\nRevisar no audit log.`,
+            priority: 'urgent',
+            createdBy: 'Sistema',
+            targetRoles: ['admin', 'rh'],
+          })
+        }
+      } catch (notifErr) {
+        console.error('[CLT OVERRIDE] falha ao notificar RH:', notifErr?.message || notifErr)
+      }
     }
 
     // Verify minimum 3 days in advance (warning informativo)
@@ -605,7 +653,29 @@ app.post('/api/schedules/:weekStart/publish', requireRole('admin', 'gerente'), (
       totalConvocations: messages.length,
       messages,
       warnings: dsrViolations, // DSR é aviso (intermitente — DSR é proporcional)
+      overridden: hasBlockers === true, // publicou com override?
     })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// ── CLT Overrides (audit log) ───────────────────────────────────────────
+
+// Lista de overrides — admin e RH podem consultar
+app.get('/api/clt-overrides', requireRole('admin', 'rh', 'gerente'), (req, res) => {
+  try {
+    const unreviewed = req.query.unreviewed === 'true'
+    const rows = unreviewed
+      ? cltOverrides.listUnreviewed()
+      : cltOverrides.listAll(100)
+    res.json(rows.map(cltOverrides.toFrontend))
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// Marca override como revisado — só admin/rh
+app.post('/api/clt-overrides/:id/review', requireRole('admin', 'rh'), (req, res) => {
+  try {
+    cltOverrides.markReviewed(req.params.id, req.user.name)
+    res.json({ ok: true })
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 

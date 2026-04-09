@@ -307,6 +307,23 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now')),
     UNIQUE(week, employee_id)
   );
+
+  -- Audit log de overrides CLT (gerente/admin publica escala com violação)
+  -- Cada linha representa uma publicação com violations — rastro legal.
+  CREATE TABLE IF NOT EXISTS clt_overrides (
+    id TEXT PRIMARY KEY,
+    week_start TEXT NOT NULL,
+    overridden_by_id TEXT NOT NULL,
+    overridden_by_name TEXT NOT NULL,
+    overridden_by_role TEXT NOT NULL,
+    justification TEXT NOT NULL,
+    violations_json TEXT NOT NULL,
+    blockers_count INTEGER NOT NULL DEFAULT 0,
+    warnings_count INTEGER NOT NULL DEFAULT 0,
+    reviewed_by TEXT,
+    reviewed_at TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
 `)
 
 // ── Índices de performance ────────────────────────────────────────────────────
@@ -358,6 +375,9 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_survey_week ON climate_surveys(week);
   CREATE INDEX IF NOT EXISTS idx_survey_employee ON climate_surveys(employee_id);
+
+  CREATE INDEX IF NOT EXISTS idx_clt_overrides_week ON clt_overrides(week_start);
+  CREATE INDEX IF NOT EXISTS idx_clt_overrides_reviewed ON clt_overrides(reviewed_at);
 `)
 
 // ── Migrações para banco existente (ADD COLUMN IF NOT EXISTS via try/catch) ──
@@ -1071,6 +1091,47 @@ export const appData = {
       ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`
     ).run(key, JSON.stringify(value))
   },
+}
+
+// ── Audit log de overrides CLT ─────────────────────────────────────────
+export const cltOverrides = {
+  create: ({ weekStart, userId, userName, userRole, justification, violations }) => {
+    const id = randomUUID()
+    const blockers = (violations || []).filter(v => v.severity === 'blocking').length
+    const warnings = (violations || []).filter(v => v.severity === 'warning').length
+    db.prepare(`INSERT INTO clt_overrides
+      (id, week_start, overridden_by_id, overridden_by_name, overridden_by_role,
+       justification, violations_json, blockers_count, warnings_count)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, weekStart, userId, userName, userRole, justification,
+          JSON.stringify(violations || []), blockers, warnings)
+    return id
+  },
+  listUnreviewed: () => db.prepare(`
+    SELECT * FROM clt_overrides WHERE reviewed_at IS NULL ORDER BY created_at DESC
+  `).all(),
+  listAll: (limit = 100) => db.prepare(`
+    SELECT * FROM clt_overrides ORDER BY created_at DESC LIMIT ?
+  `).all(limit),
+  markReviewed: (id, reviewerName) => {
+    db.prepare(`UPDATE clt_overrides
+      SET reviewed_by=?, reviewed_at=datetime('now') WHERE id=?`
+    ).run(reviewerName, id)
+  },
+  toFrontend: (row) => ({
+    id: row.id,
+    weekStart: row.week_start,
+    overriddenById: row.overridden_by_id,
+    overriddenByName: row.overridden_by_name,
+    overriddenByRole: row.overridden_by_role,
+    justification: row.justification,
+    violations: JSON.parse(row.violations_json || '[]'),
+    blockersCount: row.blockers_count,
+    warningsCount: row.warnings_count,
+    reviewedBy: row.reviewed_by,
+    reviewedAt: row.reviewed_at,
+    createdAt: row.created_at,
+  }),
 }
 
 export default db

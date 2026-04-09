@@ -256,6 +256,7 @@ export default function EscalaPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [editingDemand, setEditingDemand] = useState(false)
   const [selectedDayIndex, setSelectedDayIndex] = useState(0)
+  const [assignDuration, setAssignDuration] = useState(1)
   const [assignModalSlot, setAssignModalSlot] = useState<{
     dayIndex: number
     slotIndex: number
@@ -268,6 +269,8 @@ export default function EscalaPage() {
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showNotifyPanel, setShowNotifyPanel] = useState(false)
   const [cltViolations, setCltViolations] = useState<Array<{ rule: string; employeeId: string; date: string; message: string }>>([])
+  const [canOverrideClt, setCanOverrideClt] = useState(false)
+  const [overrideJustification, setOverrideJustification] = useState('')
   const [shiftWarning, setShiftWarning] = useState<string | null>(null)
   const [aiSuggestions, setAiSuggestions] = useState<ScheduleSuggestResult | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
@@ -402,6 +405,37 @@ export default function EscalaPage() {
     [schedule, persistSchedule],
   )
 
+  // Atribui colaborador a um range de slots consecutivos.
+  // Ex: hours = ['11:00-12:00', '12:00-13:00', '13:00-14:00']
+  // Resolve de uma vez só. Se algum slot já tem o colaborador, pula.
+  const assignEmployeeRange = useCallback(
+    (dayIndex: number, startSlotIdx: number, endSlotIdx: number, employeeId: string) => {
+      const updated: WeekSchedule = JSON.parse(JSON.stringify(schedule))
+      const day = updated.days[dayIndex]
+      const from = Math.min(startSlotIdx, endSlotIdx)
+      const to = Math.max(startSlotIdx, endSlotIdx)
+      let added = 0
+      for (let i = from; i <= to; i++) {
+        const slot = day.slots[i]
+        if (!slot) continue
+        if (slot.assignments.some((a) => a.employeeId === employeeId)) continue
+        slot.assignments.push({
+          id: crypto.randomUUID(),
+          employeeId,
+          status: 'pending',
+          confirmedAt: null,
+        })
+        added++
+      }
+      if (added > 0) {
+        void persistSchedule(updated)
+        toast('success', `Escalado em ${added}h corridas.`)
+      }
+      setAssignModalSlot(null)
+    },
+    [schedule, persistSchedule, toast],
+  )
+
   const removeAssignment = useCallback(
     (dayIndex: number, slotIndex: number, assignmentId: string) => {
       const updated: WeekSchedule = JSON.parse(JSON.stringify(schedule))
@@ -447,13 +481,16 @@ export default function EscalaPage() {
     [schedule, removeAssignment],
   )
 
-  const publishSchedule = useCallback(async () => {
+  const publishSchedule = useCallback(async (overrideOptions?: { justification: string }) => {
     setIsSaving(true)
     try {
       // Save latest state first, then publish
       if (hasToken()) {
         await api.put<WeekSchedule>(`/api/schedules/${weekStart}`, schedule)
-        const published = await api.post<WeekSchedule>(`/api/schedules/${weekStart}/publish`, {})
+        const publishBody = overrideOptions
+          ? { overrideClt: true, justification: overrideOptions.justification }
+          : {}
+        const published = await api.post<WeekSchedule>(`/api/schedules/${weekStart}/publish`, publishBody)
         dispatch({ type: 'SET_SCHEDULE', payload: published })
       } else {
         const updated: WeekSchedule = JSON.parse(JSON.stringify(schedule))
@@ -470,17 +507,28 @@ export default function EscalaPage() {
 
       const convocated = new Set<string>()
       schedule.days.forEach(day => day.slots.forEach(slot => slot.assignments.forEach(a => convocated.add(a.employeeId))))
-      toast('success', `Escala publicada! ${convocated.size} colaborador${convocated.size === 1 ? '' : 'es'} convocado${convocated.size === 1 ? '' : 's'}.`)
+      const suffix = overrideOptions ? ' (com override CLT registrado)' : ''
+      toast('success', `Escala publicada${suffix}! ${convocated.size} colaborador${convocated.size === 1 ? '' : 'es'} convocado${convocated.size === 1 ? '' : 's'}.`)
       setShowPublishModal(false)
+      setCltViolations([])
+      setCanOverrideClt(false)
       setShowNotifyPanel(true)
     } catch (err) {
       // Verifica se é violação CLT (422) com lista detalhada
-      const apiErr = err as Error & { status?: number; body?: { code?: string; blockers?: Array<{ rule: string; employeeId: string; date: string; message: string }> } }
+      const apiErr = err as Error & {
+        status?: number
+        body?: {
+          code?: string
+          blockers?: Array<{ rule: string; employeeId: string; date: string; message: string }>
+          canOverride?: boolean
+        }
+      }
       if (apiErr?.status === 422 && apiErr?.body?.code === 'CLT_VIOLATION') {
         const blockers = apiErr.body.blockers || []
         setCltViolations(blockers)
+        setCanOverrideClt(!!apiErr.body.canOverride)
         setShowPublishModal(false)
-        toast('error', `Escala viola ${blockers.length} regra(s) CLT. Ajuste antes de publicar.`)
+        toast('error', `Escala viola ${blockers.length} regra(s) CLT. Revise ou publique com justificativa.`)
       } else {
         toast('error', err instanceof Error ? err.message : 'Erro ao publicar escala')
       }
@@ -1052,19 +1100,55 @@ export default function EscalaPage() {
       {/* ─── Assignment modal ──────────────────────────────────── */}
       <Modal
         open={assignModalSlot !== null}
-        onClose={() => setAssignModalSlot(null)}
+        onClose={() => { setAssignModalSlot(null); setAssignDuration(1) }}
       >
-        {assignModalSlot && (
+        {assignModalSlot && (() => {
+          const currentDay = schedule.days[assignModalSlot.dayIndex]
+          const startIdx = assignModalSlot.slotIndex
+          const remainingSlots = currentDay ? currentDay.slots.length - startIdx : 1
+          const maxDuration = Math.max(1, remainingSlots)
+          const endIdx = Math.min(startIdx + assignDuration - 1, currentDay.slots.length - 1)
+          const endHour = currentDay.slots[endIdx]?.hour?.split('-')[1] ?? ''
+          const startHour = currentDay.slots[startIdx]?.hour?.split('-')[0] ?? ''
+          return (
           <>
             <h3 className="mb-1 text-lg font-bold text-foreground">
               Atribuir Colaborador
             </h3>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Horário:{' '}
-              {schedule.days[assignModalSlot.dayIndex]?.slots[assignModalSlot.slotIndex]?.hour}{' '}
-              &mdash;{' '}
-              {DAY_LABELS_FULL[schedule.days[assignModalSlot.dayIndex]?.dayOfWeek]}
+            <p className="mb-3 text-sm text-muted-foreground">
+              {assignDuration === 1
+                ? `Horário: ${currentDay?.slots[startIdx]?.hour}`
+                : `Horário: ${startHour} — ${endHour} (${assignDuration}h corridas)`}
+              {' · '}
+              {DAY_LABELS_FULL[currentDay?.dayOfWeek]}
             </p>
+
+            {/* Duration selector — multi-select de slots consecutivos */}
+            <div className="mb-4 rounded-lg border border-border bg-card/50 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Duração do turno
+                </span>
+                <span className="text-xs font-bold text-primary">{assignDuration}h</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[1, 2, 3, 4, 5, 6, 7, 8].filter(h => h <= maxDuration).map(h => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setAssignDuration(h)}
+                    className={cn(
+                      'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+                      assignDuration === h
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-secondary text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )}
+                  >
+                    {h}h
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="space-y-1">
               {(() => {
                 const slotDay = schedule.days[assignModalSlot.dayIndex]?.dayOfWeek ?? ''
@@ -1104,13 +1188,23 @@ export default function EscalaPage() {
                   <button
                     key={emp.id}
                     disabled={alreadyAssigned}
-                    onClick={() =>
-                      assignEmployee(
-                        assignModalSlot.dayIndex,
-                        assignModalSlot.slotIndex,
-                        emp.id,
-                      )
-                    }
+                    onClick={() => {
+                      if (assignDuration === 1) {
+                        assignEmployee(
+                          assignModalSlot.dayIndex,
+                          assignModalSlot.slotIndex,
+                          emp.id,
+                        )
+                      } else {
+                        assignEmployeeRange(
+                          assignModalSlot.dayIndex,
+                          assignModalSlot.slotIndex,
+                          assignModalSlot.slotIndex + assignDuration - 1,
+                          emp.id,
+                        )
+                      }
+                      setAssignDuration(1)
+                    }}
                     className={cn(
                       'flex w-full items-center justify-between rounded-lg px-4 py-3 text-left transition-colors',
                       alreadyAssigned
@@ -1164,7 +1258,8 @@ export default function EscalaPage() {
               })}
             </div>
           </>
-        )}
+          )
+        })()}
       </Modal>
 
       {/* ─── Confirm remove modal ──────────────────────────────── */}
@@ -1271,7 +1366,7 @@ export default function EscalaPage() {
       {/* ─── CLT Violations modal ────────────────────────────── */}
       <Modal
         open={cltViolations.length > 0}
-        onClose={() => setCltViolations([])}
+        onClose={() => { setCltViolations([]); setOverrideJustification('') }}
       >
         <div className="space-y-4">
           <div className="text-center">
@@ -1280,11 +1375,11 @@ export default function EscalaPage() {
               Escala viola regras CLT
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Ajuste os pontos abaixo antes de publicar
+              Revise as violações abaixo. Se necessário, você pode publicar assumindo responsabilidade.
             </p>
           </div>
 
-          <div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+          <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-destructive/40 bg-destructive/5 p-3">
             {cltViolations.map((v, idx) => {
               const empName = employees.find(e => e.id === v.employeeId)?.name || v.employeeId
               return (
@@ -1303,12 +1398,54 @@ export default function EscalaPage() {
             })}
           </div>
 
-          <button
-            onClick={() => setCltViolations([])}
-            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
-          >
-            Entendi, ajustar escala
-          </button>
+          {/* Override UI — só admin/gerente vê */}
+          {canOverrideClt && (state.currentUser.role === 'admin' || state.currentUser.role === 'gerente') && (
+            <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-warning" />
+                <div className="flex-1 text-xs">
+                  <p className="font-semibold text-warning">Override com responsabilidade</p>
+                  <p className="text-muted-foreground mt-0.5">
+                    Ao publicar, você assume a responsabilidade legal. O RH será notificado e o evento fica registrado em audit log permanente.
+                  </p>
+                </div>
+              </div>
+              <textarea
+                value={overrideJustification}
+                onChange={e => setOverrideJustification(e.target.value)}
+                placeholder="Justifique (mínimo 10 caracteres): ex. 'Cobertura de emergência pelo pico do almoço de domingo'"
+                rows={3}
+                className="w-full resize-none rounded-md border border-warning/30 bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-warning"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                {overrideJustification.trim().length} / 10 caracteres mínimo
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setCltViolations([]); setOverrideJustification('') }}
+              className="flex-1 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary/80 transition-colors"
+            >
+              Ajustar escala
+            </button>
+            {canOverrideClt && (state.currentUser.role === 'admin' || state.currentUser.role === 'gerente') && (
+              <button
+                onClick={() => {
+                  if (overrideJustification.trim().length < 10) {
+                    toast('warning', 'Justificativa precisa ter no mínimo 10 caracteres')
+                    return
+                  }
+                  void publishSchedule({ justification: overrideJustification.trim() })
+                }}
+                disabled={isSaving || overrideJustification.trim().length < 10}
+                className="flex-1 rounded-lg bg-warning px-4 py-2.5 text-sm font-semibold text-warning-foreground hover:bg-warning/90 transition-colors disabled:opacity-40"
+              >
+                {isSaving ? 'Publicando...' : 'Publicar mesmo assim'}
+              </button>
+            )}
+          </div>
         </div>
       </Modal>
 

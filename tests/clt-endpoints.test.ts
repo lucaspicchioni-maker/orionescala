@@ -120,6 +120,140 @@ describe('POST /api/schedules/:weekStart/publish — validação CLT', () => {
 
     expect(res.status).toBe(403)
   })
+
+  it('422 com violação retorna canOverride: true', async () => {
+    const weekStart = '2026-07-06'
+    const empResp = await request(app).get('/api/employees').set('Authorization', `Bearer ${adminToken}`)
+    const realEmpId = empResp.body[0]?.id
+    if (!realEmpId) return
+
+    const schedule = makeSchedule([
+      {
+        date: '2026-07-06',
+        slots: [
+          { hour: '22:00-23:00', assignments: [{ employeeId: realEmpId }] },
+        ],
+      },
+      {
+        date: '2026-07-07',
+        slots: [
+          { hour: '05:00-06:00', assignments: [{ employeeId: realEmpId }] },
+        ],
+      },
+    ])
+    await request(app).put(`/api/schedules/${weekStart}`).set('Authorization', `Bearer ${adminToken}`).send(schedule)
+
+    const res = await request(app)
+      .post(`/api/schedules/${weekStart}/publish`)
+      .set('Authorization', `Bearer ${adminToken}`)
+
+    expect(res.status).toBe(422)
+    expect(res.body.canOverride).toBe(true)
+  })
+
+  it('override sem justificativa retorna 400', async () => {
+    const weekStart = '2026-07-13'
+    const empResp = await request(app).get('/api/employees').set('Authorization', `Bearer ${adminToken}`)
+    const realEmpId = empResp.body[0]?.id
+    if (!realEmpId) return
+
+    const schedule = makeSchedule([
+      {
+        date: '2026-07-13',
+        slots: [{ hour: '22:00-23:00', assignments: [{ employeeId: realEmpId }] }],
+      },
+      {
+        date: '2026-07-14',
+        slots: [{ hour: '05:00-06:00', assignments: [{ employeeId: realEmpId }] }],
+      },
+    ])
+    await request(app).put(`/api/schedules/${weekStart}`).set('Authorization', `Bearer ${adminToken}`).send(schedule)
+
+    const res = await request(app)
+      .post(`/api/schedules/${weekStart}/publish`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ overrideClt: true, justification: 'curto' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.code).toBe('OVERRIDE_REQUIRES_JUSTIFICATION')
+  })
+
+  it('override com justificativa válida publica e grava audit log', async () => {
+    const weekStart = '2026-07-20'
+    const empResp = await request(app).get('/api/employees').set('Authorization', `Bearer ${adminToken}`)
+    const realEmpId = empResp.body[0]?.id
+    if (!realEmpId) return
+
+    const schedule = makeSchedule([
+      {
+        date: '2026-07-20',
+        slots: [{ hour: '22:00-23:00', assignments: [{ employeeId: realEmpId }] }],
+      },
+      {
+        date: '2026-07-21',
+        slots: [{ hour: '05:00-06:00', assignments: [{ employeeId: realEmpId }] }],
+      },
+    ])
+    await request(app).put(`/api/schedules/${weekStart}`).set('Authorization', `Bearer ${adminToken}`).send(schedule)
+
+    const res = await request(app)
+      .post(`/api/schedules/${weekStart}/publish`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        overrideClt: true,
+        justification: 'Emergência operacional — cobertura crítica do pico do almoço',
+      })
+
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    expect(res.body.overridden).toBe(true)
+
+    // Verifica que o audit log foi criado
+    const auditRes = await request(app)
+      .get('/api/clt-overrides?unreviewed=true')
+      .set('Authorization', `Bearer ${adminToken}`)
+    expect(auditRes.status).toBe(200)
+    expect(auditRes.body.length).toBeGreaterThanOrEqual(1)
+    const found = auditRes.body.find((o: any) => o.weekStart === weekStart)
+    expect(found).toBeTruthy()
+    expect(found.blockersCount).toBeGreaterThanOrEqual(1)
+    expect(found.justification).toContain('Emergência')
+  })
+
+  it('supervisor não pode override', async () => {
+    const supLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ name: 'Supervisor', password: 'super123' })
+    const supToken = supLogin.body.token
+
+    const res = await request(app)
+      .post('/api/schedules/2026-07-20/publish')
+      .set('Authorization', `Bearer ${supToken}`)
+      .send({ overrideClt: true, justification: 'supervisor tentando forçar publicação' })
+
+    expect(res.status).toBe(403)
+  })
+})
+
+describe('GET /api/clt-overrides — audit log listing', () => {
+  it('admin pode listar todos', async () => {
+    const res = await request(app)
+      .get('/api/clt-overrides')
+      .set('Authorization', `Bearer ${adminToken}`)
+    expect(res.status).toBe(200)
+    expect(Array.isArray(res.body)).toBe(true)
+  })
+
+  it('colaborador NÃO pode listar (403)', async () => {
+    const annaLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ name: 'Anna', password: 'anna1234' })
+    const annaToken = annaLogin.body.token
+    const res = await request(app)
+      .get('/api/clt-overrides')
+      .set('Authorization', `Bearer ${annaToken}`)
+    expect(res.status).toBe(403)
+  })
 })
 
 describe('POST /api/convocations/:id/cancel-by-employer', () => {

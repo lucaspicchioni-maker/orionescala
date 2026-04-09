@@ -18,6 +18,8 @@ import {
   Settings,
   BarChart3,
   TrendingUp,
+  Upload,
+  FileText,
 } from 'lucide-react'
 import {
   BarChart,
@@ -33,10 +35,12 @@ import {
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
+import { useToast } from '@/components/ui/Toast'
 import { useApp } from '@/store/AppContext'
 import { cn, formatCurrency } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { ProductivityRecord, WeeklyGoal } from '@/types'
+import { parseProductivityCsv, matchEmployees, type CsvParsedRow } from '@/services/csvImport'
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -144,6 +148,7 @@ function GoalStatus({ met, label }: { met: boolean; label: string }) {
 
 export default function ProdutividadePage() {
   const { state, dispatch } = useApp()
+  const { toast } = useToast()
   const [layer, setLayer] = useState<Layer>(
     state.currentUser.role === 'gerente' || state.currentUser.role === 'supervisor' || state.currentUser.role === 'admin' ? 'lider' : 'colaborador',
   )
@@ -151,6 +156,14 @@ export default function ProdutividadePage() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('')
   const [showGoalModal, setShowGoalModal] = useState(false)
   const [showRecordModal, setShowRecordModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importCsvText, setImportCsvText] = useState('')
+  const [importPreview, setImportPreview] = useState<{
+    matched: Array<CsvParsedRow & { employeeId: string }>
+    unmatched: CsvParsedRow[]
+    errors: Array<{ line: number; message: string }>
+  } | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const weekStart = useMemo(() => getWeekStart(weekOffset), [weekOffset])
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart])
@@ -387,6 +400,59 @@ export default function ProdutividadePage() {
     })
   }, [recordForm, weekStart, dispatch, state.productivityRecords])
 
+  // ─── CSV Import ─────────────────────────────────────────────────
+  const previewCsv = useCallback(() => {
+    if (!importCsvText.trim()) {
+      setImportPreview(null)
+      return
+    }
+    const parsed = parseProductivityCsv(importCsvText)
+    if (parsed.errors.length > 0 && parsed.rows.length === 0) {
+      setImportPreview({ matched: [], unmatched: [], errors: parsed.errors })
+      return
+    }
+    const { matched, unmatched } = matchEmployees(parsed.rows, activeEmployees)
+    setImportPreview({ matched, unmatched, errors: parsed.errors })
+  }, [importCsvText, activeEmployees])
+
+  const confirmImport = useCallback(async () => {
+    if (!importPreview || importPreview.matched.length === 0) return
+    setImporting(true)
+    try {
+      const promises = importPreview.matched.map(async (row) => {
+        const existing = state.productivityRecords.find(
+          r => r.employeeId === row.employeeId && r.weekStart === weekStart,
+        )
+        const record: ProductivityRecord = {
+          id: existing?.id ?? crypto.randomUUID(),
+          employeeId: row.employeeId,
+          date: weekStart,
+          weekStart,
+          totalOrders: row.totalOrders,
+          totalErrors: row.totalErrors,
+          errorCost: row.errorCost,
+          avgExpeditionTime: existing?.avgExpeditionTime ?? 0,
+          slaCompliance: row.slaCompliance || (existing?.slaCompliance ?? 0),
+          ordersPerHour: 0,
+          hoursWorked: existing?.hoursWorked ?? 0,
+          notes: row.notes || existing?.notes || '',
+        }
+        return api.post('/api/productivity', record)
+      })
+      await Promise.all(promises)
+      const fresh = await api.get<ProductivityRecord[]>(`/api/productivity/week/${weekStart}`)
+      dispatch({ type: 'SET_PRODUCTIVITY_RECORDS', payload: fresh })
+      toast('success', `${importPreview.matched.length} registros importados!`)
+      setShowImportModal(false)
+      setImportCsvText('')
+      setImportPreview(null)
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Erro ao importar')
+    } finally {
+      setImporting(false)
+    }
+  }, [importPreview, weekStart, state.productivityRecords, dispatch, toast])
+
   // ─── Render ──────────────────────────────────────────────────────
 
   return (
@@ -494,6 +560,17 @@ export default function ProdutividadePage() {
             >
               <Plus className="h-4 w-4" />
               Lancar Dados Semanais
+            </button>
+            <button
+              onClick={() => {
+                setImportCsvText('')
+                setImportPreview(null)
+                setShowImportModal(true)
+              }}
+              className="flex items-center gap-2 rounded-lg bg-accent/10 px-4 py-2.5 text-sm font-semibold text-accent hover:bg-accent/20 border border-accent/30"
+            >
+              <Upload className="h-4 w-4" />
+              Import CSV
             </button>
           </div>
 
@@ -1301,6 +1378,131 @@ export default function ProdutividadePage() {
             <Save className="h-4 w-4" />
             Salvar
           </button>
+        </div>
+      </Modal>
+
+      {/* ═══ CSV Import Modal ═══ */}
+      <Modal isOpen={showImportModal} onClose={() => setShowImportModal(false)} title="Importar Produtividade via CSV" size="lg">
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          <div className="rounded-lg border border-border bg-card/50 p-3 text-xs">
+            <p className="font-semibold text-foreground mb-1">Como usar</p>
+            <ol className="space-y-0.5 text-muted-foreground list-decimal list-inside">
+              <li>Exporte CSV do painel iFood/Rappi/Shopper</li>
+              <li>Cole o conteúdo abaixo ou arraste o arquivo</li>
+              <li>Clique em <strong>Prévia</strong> pra conferir quais colaboradores serão atualizados</li>
+              <li>Confirme o import</li>
+            </ol>
+            <p className="mt-2 text-muted-foreground">
+              Cabeçalhos aceitos: <code className="text-primary">colaborador, pedidos, erros, custo_erros, sla, obs</code>
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+              Arquivo CSV
+            </label>
+            <input
+              type="file"
+              accept=".csv,.txt"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const reader = new FileReader()
+                reader.onload = (ev) => {
+                  const text = String(ev.target?.result || '')
+                  setImportCsvText(text)
+                }
+                reader.readAsText(file)
+              }}
+              className="w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-accent/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-accent hover:file:bg-accent/20"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+              Ou cole aqui
+            </label>
+            <textarea
+              value={importCsvText}
+              onChange={(e) => setImportCsvText(e.target.value)}
+              placeholder={`colaborador,pedidos,erros,custo_erros\nAnna,120,3,45.00\nMiguel,95,1,15.50`}
+              rows={6}
+              className="w-full resize-none rounded-lg border border-border bg-input px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={previewCsv}
+              disabled={!importCsvText.trim()}
+              className="flex-1 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-40"
+            >
+              <FileText className="inline h-4 w-4 mr-1" />
+              Gerar Prévia
+            </button>
+          </div>
+
+          {importPreview && (
+            <div className="space-y-2">
+              {importPreview.errors.length > 0 && (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs">
+                  <p className="font-semibold text-destructive mb-1">Erros de parse ({importPreview.errors.length})</p>
+                  <ul className="space-y-0.5 text-muted-foreground">
+                    {importPreview.errors.map((e, i) => (
+                      <li key={i}>Linha {e.line}: {e.message}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {importPreview.matched.length > 0 && (
+                <div className="rounded-lg border border-success/40 bg-success/5 p-3">
+                  <p className="text-xs font-semibold text-success mb-2">
+                    Serão atualizados ({importPreview.matched.length})
+                  </p>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {importPreview.matched.map((r, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs">
+                        <span className="text-foreground font-medium">{r.employeeName}</span>
+                        <span className="text-muted-foreground">
+                          {r.totalOrders} pedidos · {r.totalErrors} erros · {formatCurrency(r.errorCost)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {importPreview.unmatched.length > 0 && (
+                <div className="rounded-lg border border-warning/40 bg-warning/5 p-3">
+                  <p className="text-xs font-semibold text-warning mb-2">
+                    Não encontrados ({importPreview.unmatched.length}) — ignorados
+                  </p>
+                  <div className="text-xs text-muted-foreground space-y-0.5">
+                    {importPreview.unmatched.map((r, i) => (
+                      <div key={i}>Linha {r.line}: <strong>{r.employeeName}</strong></div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={() => setShowImportModal(false)}
+              className="flex-1 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => void confirmImport()}
+              disabled={!importPreview || importPreview.matched.length === 0 || importing}
+              className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+            >
+              {importing ? 'Importando...' : `Confirmar ${importPreview?.matched.length || 0} registros`}
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

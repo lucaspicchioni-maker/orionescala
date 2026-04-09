@@ -28,6 +28,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppContext'
 import { cn, formatCurrency, greetingBR } from '@/lib/utils'
+import { calculateOEE, calculateCostPerOrder } from '@/services/opsMetrics'
 
 function getToday(): string {
   return new Date().toISOString().split('T')[0]
@@ -99,6 +100,35 @@ export default function HomePage() {
       avgSla: records.reduce((s, r) => s + r.slaCompliance, 0) / records.length,
     }
   }, [state.productivityRecords, weekStart])
+
+  // ── KPIs norte: OEE + Cost per Order ──────────────────────────────
+  // Proposta do especialista Tiago (party mode). OEE = única nota que
+  // o gerente olha de manhã e sabe se tá ganhando ou perdendo a semana.
+  const currentSchedule = useMemo(
+    () => state.schedules.find(s => s.weekStart === weekStart),
+    [state.schedules, weekStart],
+  )
+
+  const oeeResult = useMemo(
+    () => calculateOEE({
+      schedule: currentSchedule,
+      pontoRecords: state.pontoRecords,
+      productivityRecords: state.productivityRecords,
+    }),
+    [currentSchedule, state.pontoRecords, state.productivityRecords],
+  )
+
+  const costResult = useMemo(
+    () => calculateCostPerOrder({
+      schedule: currentSchedule,
+      pontoRecords: state.pontoRecords,
+      productivityRecords: state.productivityRecords,
+      employees: state.employees,
+    }),
+    [currentSchedule, state.pontoRecords, state.productivityRecords, state.employees],
+  )
+
+  const hasOpsData = (oeeResult.scheduledHours > 0 || oeeResult.totalOrders > 0)
 
   // ── Chart data ───────────────────────────────────────────────────────────
 
@@ -325,6 +355,99 @@ export default function HomePage() {
       {/* ── GERENTE / ADMIN ── */}
       {(currentUser.role === 'gerente' || currentUser.role === 'admin') && (
         <>
+          {/* ═══ KPIs Norte: OEE + Cost per Order ═════════════════════ */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {/* OEE Card */}
+            <Card className={cn(
+              'border-2',
+              oeeResult.classification === 'classe mundial' && 'border-success/50 bg-success/5',
+              oeeResult.classification === 'saudável' && 'border-success/30 bg-success/5',
+              oeeResult.classification === 'médio' && 'border-warning/40 bg-warning/5',
+              oeeResult.classification === 'crítico' && 'border-destructive/40 bg-destructive/5',
+            )}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">OEE da Semana</p>
+                  <p className={cn(
+                    'mt-1 text-5xl font-black',
+                    oeeResult.classification === 'classe mundial' && 'text-success',
+                    oeeResult.classification === 'saudável' && 'text-success',
+                    oeeResult.classification === 'médio' && 'text-warning',
+                    oeeResult.classification === 'crítico' && 'text-destructive',
+                  )}>
+                    {hasOpsData ? `${Math.round(oeeResult.oee * 100)}%` : '—'}
+                  </p>
+                  {hasOpsData ? (
+                    <p className="mt-1 text-xs font-medium uppercase text-muted-foreground">
+                      {oeeResult.classification}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted-foreground">Sem dados esta semana</p>
+                  )}
+                </div>
+                <Target className={cn(
+                  'h-7 w-7',
+                  oeeResult.classification === 'classe mundial' && 'text-success',
+                  oeeResult.classification === 'saudável' && 'text-success',
+                  oeeResult.classification === 'médio' && 'text-warning',
+                  oeeResult.classification === 'crítico' && 'text-destructive',
+                )} />
+              </div>
+              {hasOpsData && (
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Avail.</p>
+                    <p className="text-sm font-bold text-foreground">{Math.round(oeeResult.availability * 100)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Perf.</p>
+                    <p className="text-sm font-bold text-foreground">{Math.round(oeeResult.performance * 100)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Qual.</p>
+                    <p className="text-sm font-bold text-foreground">{Math.round(oeeResult.quality * 100)}%</p>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Cost per Order Card */}
+            <Card className="border-2 border-primary/30 bg-primary/5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Custo por Pedido</p>
+                  <p className="mt-1 text-5xl font-black text-primary">
+                    {costResult.totalOrders > 0 ? formatCurrency(costResult.costPerOrder) : '—'}
+                  </p>
+                  {costResult.totalOrders > 0 ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {costResult.totalOrders} pedidos · {formatCurrency(costResult.totalCost)} custo total
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted-foreground">Aguardando produtividade lançada</p>
+                  )}
+                </div>
+                <DollarSign className="h-7 w-7 text-primary" />
+              </div>
+              {costResult.totalOrders > 0 && (
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Folha</p>
+                    <p className="text-xs font-bold text-foreground">{formatCurrency(costResult.breakdown.folhaHoras)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Erros</p>
+                    <p className="text-xs font-bold text-destructive">{formatCurrency(costResult.breakdown.erros)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">HE</p>
+                    <p className="text-xs font-bold text-warning">{formatCurrency(costResult.breakdown.horasExtras)}</p>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
+
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Card className="text-center !p-3">
               <Users className="mx-auto h-5 w-5 text-primary" />
