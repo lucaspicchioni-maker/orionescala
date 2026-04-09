@@ -20,7 +20,7 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppContext'
 import { api } from '@/lib/api'
-import { cn } from '@/lib/utils'
+import { cn, todayBR } from '@/lib/utils'
 import type { PontoRecord } from '@/types'
 
 const DAY_SHORT: Record<number, string> = {
@@ -28,7 +28,7 @@ const DAY_SHORT: Record<number, string> = {
 }
 
 function getToday(): string {
-  return new Date().toISOString().split('T')[0]
+  return todayBR()
 }
 
 function getWeekStart(offset: number): string {

@@ -3,7 +3,7 @@ import { Star, Send, MessageCircle, History } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { useApp } from '@/store/AppContext'
 import { useToast } from '@/components/ui/Toast'
-import { cn } from '@/lib/utils'
+import { cn, todayBR } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { ShiftFeedback } from '@/types'
 
@@ -18,7 +18,7 @@ const CRITERIA = [
 type ScoreKey = typeof CRITERIA[number]['key']
 
 function getToday(): string {
-  return new Date().toISOString().split('T')[0]
+  return todayBR()
 }
 
 function getWeekStart(): string {

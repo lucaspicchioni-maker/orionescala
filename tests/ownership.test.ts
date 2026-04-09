@@ -5,8 +5,9 @@ import type { Express } from 'express'
 let app: Express
 let adminToken: string
 let annaToken: string
-let annaEmployeeId: string | undefined
-let miguelEmployeeId: string | undefined
+let miguelToken: string
+let annaEmployeeId: string
+let miguelEmployeeId: string
 
 beforeAll(async () => {
   const mod: any = await import('../server.js')
@@ -26,43 +27,38 @@ beforeAll(async () => {
   const miguelLogin = await request(app)
     .post('/api/auth/login')
     .send({ name: 'Miguel', password: 'miguel123' })
+  miguelToken = miguelLogin.body.token
   miguelEmployeeId = miguelLogin.body.user.employeeId
 })
 
-describe('Ownership: colaborador só acessa os próprios dados', () => {
-  it('Anna lê o próprio banco-horas/employee/:id (permitido)', async () => {
-    if (!annaEmployeeId) {
-      // Sem employeeId ligado, endpoint retorna 400 — ainda assim não é 403
-      const res = await request(app)
-        .get('/api/banco-horas/employee/any')
-        .set('Authorization', `Bearer ${annaToken}`)
-      expect([400, 403]).toContain(res.status)
-      return
-    }
+// ── Pre-condição crítica: seed DEVE linkar colaborador a employee ─────────
+describe('Seed integrity: colaborador-user linkado a employee', () => {
+  it('Anna (colaborador) tem employeeId não-nulo no JWT', () => {
+    expect(annaEmployeeId).toBeTruthy()
+    expect(typeof annaEmployeeId).toBe('string')
+  })
+
+  it('Miguel (colaborador) tem employeeId não-nulo no JWT', () => {
+    expect(miguelEmployeeId).toBeTruthy()
+    expect(typeof miguelEmployeeId).toBe('string')
+  })
+
+  it('Anna e Miguel têm employeeIds diferentes', () => {
+    expect(annaEmployeeId).not.toBe(miguelEmployeeId)
+  })
+})
+
+// ── Ownership enforcement: colaborador só acessa os próprios dados ─────
+describe('Ownership: colaborador pode ler os próprios dados', () => {
+  it('Anna lê o próprio banco-horas/employee/:id (200)', async () => {
     const res = await request(app)
       .get(`/api/banco-horas/employee/${annaEmployeeId}`)
       .set('Authorization', `Bearer ${annaToken}`)
     expect(res.status).toBe(200)
+    expect(Array.isArray(res.body)).toBe(true)
   })
 
-  it('Anna NÃO pode ler banco-horas do Miguel', async () => {
-    if (!annaEmployeeId || !miguelEmployeeId) return
-    const res = await request(app)
-      .get(`/api/banco-horas/employee/${miguelEmployeeId}`)
-      .set('Authorization', `Bearer ${annaToken}`)
-    expect(res.status).toBe(403)
-  })
-
-  it('Anna NÃO pode ler saldo de outro colaborador', async () => {
-    if (!annaEmployeeId || !miguelEmployeeId) return
-    const res = await request(app)
-      .get(`/api/banco-horas/saldo/${miguelEmployeeId}`)
-      .set('Authorization', `Bearer ${annaToken}`)
-    expect(res.status).toBe(403)
-  })
-
-  it('Anna pode ler o próprio saldo', async () => {
-    if (!annaEmployeeId) return
+  it('Anna lê o próprio saldo de banco de horas (200)', async () => {
     const res = await request(app)
       .get(`/api/banco-horas/saldo/${annaEmployeeId}`)
       .set('Authorization', `Bearer ${annaToken}`)
@@ -70,24 +66,86 @@ describe('Ownership: colaborador só acessa os próprios dados', () => {
     expect(res.body).toHaveProperty('saldo')
   })
 
-  it('Anna NÃO pode ler produtividade do Miguel', async () => {
-    if (!miguelEmployeeId) return
+  it('Anna lê a própria produtividade (200)', async () => {
+    const res = await request(app)
+      .get(`/api/productivity/employee/${annaEmployeeId}`)
+      .set('Authorization', `Bearer ${annaToken}`)
+    expect(res.status).toBe(200)
+  })
+
+  it('Anna lê os próprios shift-swaps (200)', async () => {
+    const res = await request(app)
+      .get(`/api/shift-swaps/employee/${annaEmployeeId}`)
+      .set('Authorization', `Bearer ${annaToken}`)
+    expect(res.status).toBe(200)
+  })
+
+  it('Anna lê a própria disponibilidade (200)', async () => {
+    const res = await request(app)
+      .get(`/api/availabilities/employee/${annaEmployeeId}`)
+      .set('Authorization', `Bearer ${annaToken}`)
+    expect(res.status).toBe(200)
+  })
+
+  it('Anna pode lançar ponto em nome próprio (2xx)', async () => {
+    const res = await request(app)
+      .post('/api/ponto')
+      .set('Authorization', `Bearer ${annaToken}`)
+      .send({
+        employeeId: annaEmployeeId,
+        date: '2026-04-08',
+        status: 'on_time',
+      })
+    expect(res.status).toBe(200)
+  })
+})
+
+describe('Ownership: colaborador NÃO pode ler dados alheios', () => {
+  it('Anna NÃO pode ler banco-horas do Miguel (403)', async () => {
+    const res = await request(app)
+      .get(`/api/banco-horas/employee/${miguelEmployeeId}`)
+      .set('Authorization', `Bearer ${annaToken}`)
+    expect(res.status).toBe(403)
+  })
+
+  it('Anna NÃO pode ler saldo do Miguel (403)', async () => {
+    const res = await request(app)
+      .get(`/api/banco-horas/saldo/${miguelEmployeeId}`)
+      .set('Authorization', `Bearer ${annaToken}`)
+    expect(res.status).toBe(403)
+  })
+
+  it('Anna NÃO pode ler produtividade do Miguel (403)', async () => {
     const res = await request(app)
       .get(`/api/productivity/employee/${miguelEmployeeId}`)
       .set('Authorization', `Bearer ${annaToken}`)
     expect(res.status).toBe(403)
   })
 
-  it('Admin pode ler produtividade de qualquer colaborador', async () => {
-    const target = miguelEmployeeId || 'any-id'
+  it('Anna NÃO pode ler shift-swaps do Miguel (403)', async () => {
     const res = await request(app)
-      .get(`/api/productivity/employee/${target}`)
-      .set('Authorization', `Bearer ${adminToken}`)
-    expect(res.status).toBe(200)
+      .get(`/api/shift-swaps/employee/${miguelEmployeeId}`)
+      .set('Authorization', `Bearer ${annaToken}`)
+    expect(res.status).toBe(403)
   })
 
-  it('Anna NÃO pode solicitar férias em nome do Miguel', async () => {
-    if (!miguelEmployeeId) return
+  it('Anna NÃO pode ler disponibilidade do Miguel (403)', async () => {
+    const res = await request(app)
+      .get(`/api/availabilities/employee/${miguelEmployeeId}`)
+      .set('Authorization', `Bearer ${annaToken}`)
+    expect(res.status).toBe(403)
+  })
+
+  it('Miguel NÃO pode ler banco-horas da Anna (403) — teste inverso', async () => {
+    const res = await request(app)
+      .get(`/api/banco-horas/employee/${annaEmployeeId}`)
+      .set('Authorization', `Bearer ${miguelToken}`)
+    expect(res.status).toBe(403)
+  })
+})
+
+describe('Ownership: colaborador NÃO pode escrever em nome alheio', () => {
+  it('Anna NÃO pode solicitar férias em nome do Miguel (403)', async () => {
     const res = await request(app)
       .post('/api/vacations')
       .set('Authorization', `Bearer ${annaToken}`)
@@ -100,8 +158,7 @@ describe('Ownership: colaborador só acessa os próprios dados', () => {
     expect(res.status).toBe(403)
   })
 
-  it('Anna NÃO pode avaliar o turno em nome do Miguel', async () => {
-    if (!miguelEmployeeId) return
+  it('Anna NÃO pode avaliar turno em nome do Miguel (403)', async () => {
     const res = await request(app)
       .post('/api/shift-feedbacks')
       .set('Authorization', `Bearer ${annaToken}`)
@@ -113,8 +170,7 @@ describe('Ownership: colaborador só acessa os próprios dados', () => {
     expect(res.status).toBe(403)
   })
 
-  it('Anna NÃO pode responder pesquisa de clima em nome do Miguel', async () => {
-    if (!miguelEmployeeId) return
+  it('Anna NÃO pode responder pesquisa em nome do Miguel (403)', async () => {
     const res = await request(app)
       .post('/api/surveys')
       .set('Authorization', `Bearer ${annaToken}`)
@@ -126,8 +182,7 @@ describe('Ownership: colaborador só acessa os próprios dados', () => {
     expect(res.status).toBe(403)
   })
 
-  it('Anna NÃO pode criar solicitação de troca em nome do Miguel', async () => {
-    if (!miguelEmployeeId) return
+  it('Anna NÃO pode criar troca de turno em nome do Miguel (403)', async () => {
     const res = await request(app)
       .post('/api/shift-swaps')
       .set('Authorization', `Bearer ${annaToken}`)
@@ -139,8 +194,7 @@ describe('Ownership: colaborador só acessa os próprios dados', () => {
     expect(res.status).toBe(403)
   })
 
-  it('Anna NÃO pode sobrescrever disponibilidade do Miguel', async () => {
-    if (!miguelEmployeeId) return
+  it('Anna NÃO pode sobrescrever disponibilidade do Miguel (403)', async () => {
     const res = await request(app)
       .put('/api/availabilities')
       .set('Authorization', `Bearer ${annaToken}`)
@@ -152,8 +206,7 @@ describe('Ownership: colaborador só acessa os próprios dados', () => {
     expect(res.status).toBe(403)
   })
 
-  it('Anna NÃO pode lançar ponto em nome do Miguel', async () => {
-    if (!miguelEmployeeId) return
+  it('Anna NÃO pode lançar ponto em nome do Miguel (403)', async () => {
     const res = await request(app)
       .post('/api/ponto')
       .set('Authorization', `Bearer ${annaToken}`)
@@ -163,5 +216,21 @@ describe('Ownership: colaborador só acessa os próprios dados', () => {
         status: 'on_time',
       })
     expect(res.status).toBe(403)
+  })
+})
+
+describe('Ownership: admin tem acesso amplo', () => {
+  it('Admin pode ler produtividade de qualquer colaborador (200)', async () => {
+    const res = await request(app)
+      .get(`/api/productivity/employee/${miguelEmployeeId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+    expect(res.status).toBe(200)
+  })
+
+  it('Admin pode ler banco-horas de qualquer colaborador (200)', async () => {
+    const res = await request(app)
+      .get(`/api/banco-horas/employee/${miguelEmployeeId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+    expect(res.status).toBe(200)
   })
 })

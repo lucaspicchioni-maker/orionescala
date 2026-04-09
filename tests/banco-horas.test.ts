@@ -1,12 +1,14 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 
 let parseSlotMinutes: (hourStr: string) => number | null
 let computeWeekStart: (dateStr: string) => string
+let todayBR: () => string
 
 beforeAll(async () => {
   const mod: any = await import('../server.js')
   parseSlotMinutes = mod.parseSlotMinutes
   computeWeekStart = mod.computeWeekStart
+  todayBR = mod.todayBR
 })
 
 describe('parseSlotMinutes — regex robusto', () => {
@@ -71,5 +73,22 @@ describe('computeWeekStart — segunda-feira da semana', () => {
   it('virada de mês funciona corretamente', () => {
     // 2026-05-01 é sexta → segunda é 2026-04-27
     expect(computeWeekStart('2026-05-01')).toBe('2026-04-27')
+  })
+})
+
+describe('todayBR (server) — data atual em São Paulo', () => {
+  it('retorna data de SP mesmo quando UTC já virou o dia', () => {
+    // 22h Brasília dia 8 = 01h UTC dia 9 → deve retornar "2026-04-08"
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-09T01:00:00Z'))
+    expect(todayBR()).toBe('2026-04-08')
+    vi.useRealTimers()
+  })
+
+  it('retorna data de SP no meio-dia', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-08T15:00:00Z'))
+    expect(todayBR()).toBe('2026-04-08')
+    vi.useRealTimers()
   })
 })

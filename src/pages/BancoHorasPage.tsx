@@ -3,6 +3,7 @@ import { useApp } from '@/store/AppContext'
 import { useToast } from '@/components/ui/Toast'
 import { Clock, TrendingUp, TrendingDown, Minus, Plus, RefreshCw, Download } from 'lucide-react'
 import { api } from '@/lib/api'
+import { todayBR } from '@/lib/utils'
 import type { BancoHorasEntry } from '@/types'
 
 export default function BancoHorasPage() {
@@ -82,7 +83,7 @@ export default function BancoHorasPage() {
     const entry: BancoHorasEntry = {
       id: crypto.randomUUID(),
       employeeId: adjEmployee,
-      date: new Date().toISOString().split('T')[0],
+      date: todayBR(),
       weekStart: state.currentWeek,
       scheduledMinutes: 0,
       workedMinutes: 0,

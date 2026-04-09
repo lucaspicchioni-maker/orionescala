@@ -33,3 +33,17 @@ export function greetingBR(): 'Bom dia' | 'Boa tarde' | 'Boa noite' {
   if (h < 18) return 'Boa tarde'
   return 'Boa noite'
 }
+
+// Retorna a data atual (ou de um Date específico) em São Paulo no formato YYYY-MM-DD.
+// Use SEMPRE isto em vez de `new Date().toISOString().split('T')[0]`, que retorna UTC.
+// Entre 21h e 00h de Brasília o UTC já virou pro dia seguinte — bug silencioso.
+export function todayBR(date?: Date): string {
+  const d = date ?? new Date()
+  // en-CA retorna YYYY-MM-DD
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d)
+}

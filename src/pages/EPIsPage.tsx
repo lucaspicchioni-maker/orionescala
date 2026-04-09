@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Plus, AlertTriangle, RotateCcw, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { todayBR } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -93,7 +94,7 @@ export default function EPIsPage() {
   async function handleReturn() {
     if (!returnTarget) return
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = todayBR()
       await api.put(`/api/epis/${returnTarget.id}`, { ...returnTarget, returnedAt: today })
       setEpiList(prev => prev.map(e => e.id === returnTarget.id ? { ...e, returnedAt: today } : e))
       setReturnTarget(null)

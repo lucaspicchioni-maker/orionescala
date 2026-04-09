@@ -14,7 +14,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppContext'
 import { api } from '@/lib/api'
-import { cn } from '@/lib/utils'
+import { cn, todayBR } from '@/lib/utils'
 import type { PontoRecord, GeoLocation } from '@/types'
 
 // ── Geo helpers ──────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ function getCurrentPosition(): Promise<GeolocationPosition> {
 }
 
 function getToday(): string {
-  return new Date().toISOString().split('T')[0]
+  return todayBR()
 }
 
 function formatTime(isoDate: string | null): string {

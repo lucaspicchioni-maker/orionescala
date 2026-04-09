@@ -151,6 +151,15 @@ function computeWeekStart(dateStr) {
   return d.toISOString().split('T')[0]
 }
 
+// Retorna "YYYY-MM-DD" em America/Sao_Paulo — NÃO use toISOString em registros
+// que representam o dia do usuário (entre 21h-00h Brasília o UTC já virou).
+function todayBR() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date())
+}
+
 function syncBancoHoras(pontoRecord) {
   try {
     if (!pontoRecord.employeeId || !pontoRecord.date) return
@@ -254,7 +263,7 @@ app.post('/api/auth/login', loginLimiter, (req, res) => {
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
-app.post('/api/auth/logout', (_req, res) => {
+app.post('/api/auth/logout', (req, res) => {
   res.json({ ok: true })
 })
 
@@ -273,7 +282,7 @@ app.get('/api/auth/me', (req, res) => {
 
 // ── Users management ────────────────────────────────────────────────────
 
-app.get('/api/users', requireRole('admin'), (_req, res) => {
+app.get('/api/users', requireRole('admin'), (req, res) => {
   try {
     const db = getDb()
     const all = db.prepare('SELECT id, name, role, employee_id FROM users ORDER BY name').all()
@@ -314,7 +323,7 @@ app.delete('/api/users/:id', requireRole('admin'), (req, res) => {
 
 // ── Employees CRUD ──────────────────────────────────────────────────────
 
-app.get('/api/employees', requireRole('admin', 'gerente', 'supervisor', 'rh'), (_req, res) => {
+app.get('/api/employees', requireRole('admin', 'gerente', 'supervisor', 'rh'), (req, res) => {
   try {
     const all = employees.getAll().map(employees.toFrontend)
     res.json(all)
@@ -352,7 +361,7 @@ app.delete('/api/employees/:id', requireRole('admin', 'gerente'), (req, res) => 
 
 // ── Schedules ───────────────────────────────────────────────────────────
 
-app.get('/api/schedules', requireRole('admin', 'gerente', 'supervisor', 'rh'), (_req, res) => {
+app.get('/api/schedules', requireRole('admin', 'gerente', 'supervisor', 'rh'), (req, res) => {
   try {
     const all = schedules.getAll()
     res.json(all)
@@ -500,7 +509,7 @@ app.post('/api/schedules/:weekStart/publish', requireRole('admin', 'gerente'), (
 
 // ── Ponto ───────────────────────────────────────────────────────────────
 
-app.get('/api/ponto', requireRole('admin', 'gerente', 'supervisor', 'rh'), (_req, res) => {
+app.get('/api/ponto', requireRole('admin', 'gerente', 'supervisor', 'rh'), (req, res) => {
   try {
     res.json(ponto.getAll())
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
@@ -850,7 +859,7 @@ Retorne APENAS o texto da mensagem, sem JSON, sem formatacao extra.`,
     }
   })
 } else {
-  app.use('/api/ai', (_req, res) => {
+  app.use('/api/ai', (req, res) => {
     res.status(503).json({ error: 'ANTHROPIC_API_KEY nao configurada no servidor.' })
   })
 }
@@ -1044,7 +1053,7 @@ app.post('/api/shift-feedbacks', requireRole('admin', 'gerente', 'supervisor', '
     if (req.user.role === 'colaborador' && req.user.employeeId !== employeeId) {
       return res.status(403).json({ error: 'Acesso negado' })
     }
-    const feedbackDate = date || new Date().toISOString().split('T')[0]
+    const feedbackDate = date || todayBR()
     const existing = shiftFeedbacks.getByEmployeeDate(employeeId, feedbackDate)
     if (existing) return res.status(409).json({ error: 'Voce ja avaliou seu turno hoje' })
     const id = shiftFeedbacks.upsert({ ...req.body, date: feedbackDate })
@@ -1311,7 +1320,7 @@ app.use((_req, res) => {
 })
 
 // Exporta app + helpers pra testes poderem usar sem iniciar o servidor
-export { app, parseSlotMinutes, computeWeekStart }
+export { app, parseSlotMinutes, computeWeekStart, todayBR }
 
 // Só inicia o servidor e jobs se não estiver em modo teste
 if (process.env.NODE_ENV !== 'test') {
