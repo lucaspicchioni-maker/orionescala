@@ -26,7 +26,7 @@ import {
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppContext'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, greetingBR } from '@/lib/utils'
 
 function getToday(): string {
   return new Date().toISOString().split('T')[0]
@@ -149,8 +149,7 @@ export default function HomePage() {
     }))
   }, [state.productivityRecords])
 
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
+  const greeting = greetingBR()
 
   return (
     <div className="animate-fade-in space-y-4 p-3 sm:space-y-6 sm:p-4 lg:p-6">

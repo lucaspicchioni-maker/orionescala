@@ -376,32 +376,55 @@ for (const sql of migrations) {
 }
 
 // ── Seed default users if none exist ────────────────────────────────────────
+// Em desenvolvimento: usa fallbacks conhecidos para facilitar testes.
+// Em produção: se SEED_*_PASSWORD não definido, gera senha aleatória e loga UMA VEZ.
+// Nunca commitar senhas reais no repositório (é público).
 
-const genPass = (envKey, fallback) => process.env[envKey] || fallback
+const IS_PROD = process.env.NODE_ENV === 'production'
+const devFallbacks = {
+  SEED_ADMIN_PASSWORD:      'lucas123',
+  SEED_VIVIAN_PASSWORD:     'vivian123',
+  SEED_SUPERVISOR_PASSWORD: 'super123',
+  SEED_RH_PASSWORD:         'rh1234',
+  SEED_MIGUEL_PASSWORD:     'miguel123',
+  SEED_ANNA_PASSWORD:       'anna1234',
+}
+const genPass = (envKey) => {
+  if (process.env[envKey]) return process.env[envKey]
+  if (!IS_PROD) return devFallbacks[envKey]
+  return randomUUID().slice(0, 12) // produção sem env var: aleatória
+}
 
 const userCount = db.prepare('SELECT COUNT(*) as c FROM users').get()
 if (userCount.c === 0) {
   const defaultUsers = [
-    { name: 'Lucas',      role: 'admin',      password: genPass('SEED_ADMIN_PASSWORD',      'lucas123') },
-    { name: 'Vivian',     role: 'gerente',     password: genPass('SEED_VIVIAN_PASSWORD',     'vivian123') },
-    { name: 'Supervisor', role: 'supervisor',  password: genPass('SEED_SUPERVISOR_PASSWORD', 'super123') },
-    { name: 'RH',         role: 'rh',          password: genPass('SEED_RH_PASSWORD',         'rh1234') },
-    { name: 'Miguel',     role: 'colaborador', password: genPass('SEED_MIGUEL_PASSWORD',     'miguel123') },
-    { name: 'Anna',       role: 'colaborador', password: genPass('SEED_ANNA_PASSWORD',       'anna1234') },
+    { name: 'Lucas',      role: 'admin',      password: genPass('SEED_ADMIN_PASSWORD') },
+    { name: 'Vivian',     role: 'gerente',     password: genPass('SEED_VIVIAN_PASSWORD') },
+    { name: 'Supervisor', role: 'supervisor',  password: genPass('SEED_SUPERVISOR_PASSWORD') },
+    { name: 'RH',         role: 'rh',          password: genPass('SEED_RH_PASSWORD') },
+    { name: 'Miguel',     role: 'colaborador', password: genPass('SEED_MIGUEL_PASSWORD') },
+    { name: 'Anna',       role: 'colaborador', password: genPass('SEED_ANNA_PASSWORD') },
   ]
   const insert = db.prepare('INSERT INTO users (id, name, role, password_hash) VALUES (?, ?, ?, ?)')
-  console.log('✅ Usuários padrão criados:')
+  console.log('\n══════════════════════════════════════════════════════')
+  console.log('✅ USUARIOS PADRAO CRIADOS — GUARDE ESTAS SENHAS:')
+  console.log('══════════════════════════════════════════════════════')
   for (const u of defaultUsers) {
     insert.run(randomUUID(), u.name, u.role, bcrypt.hashSync(u.password, 10))
-    console.log(`   ${u.name} (${u.role}): ${u.password}`)
+    console.log(`   ${u.name.padEnd(12)} (${u.role.padEnd(12)}): ${u.password}`)
   }
+  console.log('══════════════════════════════════════════════════════')
+  if (IS_PROD) {
+    console.log('⚠️  Para senhas fixas, configure as variáveis SEED_*_PASSWORD no Railway.')
+  }
+  console.log('')
 }
 
 // ── Garantir que Vivian existe com role gerente ──────────────────────────────
 
 const vivian = db.prepare("SELECT * FROM users WHERE name = 'Vivian' COLLATE NOCASE").get()
 if (!vivian) {
-  const password = genPass('SEED_VIVIAN_PASSWORD', 'vivian123')
+  const password = genPass('SEED_VIVIAN_PASSWORD')
   db.prepare('INSERT INTO users (id, name, role, password_hash) VALUES (?, ?, ?, ?)').run(
     randomUUID(), 'Vivian', 'gerente', bcrypt.hashSync(password, 10)
   )
