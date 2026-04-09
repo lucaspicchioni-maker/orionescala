@@ -29,7 +29,6 @@ import {
   FileText,
   KeyRound,
   Palmtree,
-  HardHat,
   Smile,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -64,13 +63,15 @@ const navByRole: Record<UserRole, NavEntry[]> = {
         { label: 'Escala', icon: CalendarDays, to: '/escala' },
         { label: 'Equipe', icon: Users, to: '/colaboradores' },
         { label: 'Convocacoes', icon: Bell, to: '/convocacoes' },
+        { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
+        { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
       ],
     },
     {
       label: 'Gestao', icon: BarChart3, items: [
         { label: 'Custos', icon: DollarSign, to: '/custos' },
+        { label: 'Banco Horas', icon: Clock, to: '/banco-horas' },
         { label: 'Ferias', icon: Palmtree, to: '/ferias' },
-        { label: 'EPIs', icon: HardHat, to: '/epis' },
         { label: 'Regras', icon: Shield, to: '/regras' },
         { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
         { label: 'Recibo', icon: FileText, to: '/recibo' },
@@ -93,14 +94,15 @@ const navByRole: Record<UserRole, NavEntry[]> = {
         { label: 'Escala', icon: CalendarDays, to: '/escala' },
         { label: 'Equipe', icon: Users, to: '/colaboradores' },
         { label: 'Convocacoes', icon: Bell, to: '/convocacoes' },
+        { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
         { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
       ],
     },
     {
       label: 'Gestao', icon: BarChart3, items: [
         { label: 'Custos', icon: DollarSign, to: '/custos' },
+        { label: 'Banco Horas', icon: Clock, to: '/banco-horas' },
         { label: 'Ferias', icon: Palmtree, to: '/ferias' },
-        { label: 'EPIs', icon: HardHat, to: '/epis' },
         { label: 'Regras', icon: Shield, to: '/regras' },
         { label: 'Relatorios', icon: ClipboardList, to: '/relatorio-layer' },
         { label: 'Recibo', icon: FileText, to: '/recibo' },
@@ -116,6 +118,7 @@ const navByRole: Record<UserRole, NavEntry[]> = {
   ],
   supervisor: [
     { label: 'Inicio', icon: Home, to: '/' },
+    { label: 'Ao Vivo', icon: Activity, to: '/dashboard-ao-vivo' },
     {
       label: 'Operacao', icon: Briefcase, items: [
         { label: 'Escala', icon: CalendarDays, to: '/escala' },
@@ -123,7 +126,6 @@ const navByRole: Record<UserRole, NavEntry[]> = {
         { label: 'Check-in', icon: MapPin, to: '/checkin' },
         { label: 'Ponto', icon: Fingerprint, to: '/ponto' },
         { label: 'Produtiv.', icon: Zap, to: '/produtividade' },
-        { label: 'EPIs', icon: HardHat, to: '/epis' },
       ],
     },
     { label: 'Mural', icon: Megaphone, to: '/mural' },
@@ -135,7 +137,7 @@ const navByRole: Record<UserRole, NavEntry[]> = {
         { label: 'Painel RH', icon: UserCog, to: '/rh' },
         { label: 'Equipe', icon: Users, to: '/colaboradores' },
         { label: 'Ferias', icon: Palmtree, to: '/ferias' },
-        { label: 'EPIs', icon: HardHat, to: '/epis' },
+        { label: 'Banco Horas', icon: Clock, to: '/banco-horas' },
         { label: 'Clima', icon: Smile, to: '/clima' },
         { label: 'Dimens.', icon: Calculator, to: '/dimensionamento' },
         { label: 'Custos', icon: DollarSign, to: '/custos' },
@@ -234,6 +236,7 @@ export function Sidebar() {
   function logout() {
     dispatch({ type: 'SET_CURRENT_USER', payload: { name: '', role: 'colaborador' } })
     localStorage.removeItem('orion_logged_employee')
+    localStorage.removeItem('orion_token')
     navigate('/')
     setMobileOpen(false)
   }

@@ -74,8 +74,8 @@ export default function DisponibilidadePage() {
     [state.availabilities, loggedEmployeeId, weekStart]
   )
 
-  // Load existing declaration into selection when week changes
-  useState(() => {
+  // Rehydrate selection when week or existing declaration changes
+  useEffect(() => {
     if (existingDeclaration) {
       const keys = new Set<string>()
       existingDeclaration.slots.forEach(slot => {
@@ -85,20 +85,6 @@ export default function DisponibilidadePage() {
     } else {
       setSelected(new Set())
     }
-  })
-
-  // Rehydrate selection when week changes
-  useMemo(() => {
-    if (existingDeclaration) {
-      const keys = new Set<string>()
-      existingDeclaration.slots.forEach(slot => {
-        slot.hours.forEach(hr => keys.add(`${slot.day}|${hr}`))
-      })
-      setSelected(keys)
-    } else {
-      setSelected(new Set())
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekStart, existingDeclaration?.id])
 
   const totalHours = selected.size

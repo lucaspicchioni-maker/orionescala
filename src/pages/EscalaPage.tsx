@@ -309,6 +309,20 @@ export default function EscalaPage() {
   const selectedDayStats = dayStats[selectedDayIndex]
   const allSlotsFilled = dayStats.every((d) => d.totalFilled >= d.totalRequired)
 
+  // Resumo de slots faltando por dia — pra mostrar ao supervisor EXATAMENTE o que falta
+  const missingByDay = useMemo(() => {
+    const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
+    return schedule.days
+      .map((day, idx) => {
+        const stats = dayStats[idx]
+        const missing = Math.max(0, stats.totalRequired - stats.totalFilled)
+        if (missing === 0) return null
+        const date = new Date(day.date + 'T12:00:00')
+        return { label: DAY_NAMES[date.getDay()], date: day.date, missing }
+      })
+      .filter(Boolean) as Array<{ label: string; date: string; missing: number }>
+  }, [schedule, dayStats])
+
   const selectedDayCost = useMemo(() => {
     if (!selectedDay) return 0
     return selectedDay.slots.reduce((sum, slot) => {
@@ -339,11 +353,12 @@ export default function EscalaPage() {
     )
   }, [schedule])
 
+  const totalMissing = missingByDay.reduce((s, m) => s + m.missing, 0)
   const statusLabel = schedule.published
     ? 'Publicada'
     : allSlotsFilled
-      ? 'Rascunho'
-      : 'Incompleta'
+      ? 'Pronta'
+      : `Incompleta (${totalMissing})`
   const statusVariant = schedule.published
     ? 'success'
     : allSlotsFilled
@@ -586,13 +601,18 @@ export default function EscalaPage() {
             {isSaving ? 'Salvando...' : statusLabel}
           </Badge>
           <button
-            disabled={!allSlotsFilled || schedule.published || isSaving}
+            disabled={schedule.published || isSaving}
             onClick={() => setShowPublishModal(true)}
+            title={
+              !allSlotsFilled
+                ? `Escala incompleta — ${missingByDay.map(m => `${m.label} (-${m.missing})`).join(', ')}`
+                : undefined
+            }
             className={cn(
               'flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors',
-              allSlotsFilled && !schedule.published
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'cursor-not-allowed bg-primary/20 text-primary/50',
+              schedule.published
+                ? 'cursor-not-allowed bg-primary/20 text-primary/50'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90',
             )}
           >
             <Send className="h-4 w-4" />
@@ -601,6 +621,22 @@ export default function EscalaPage() {
           </button>
         </div>
       </div>
+
+      {/* Resumo de slots faltando (visível, não só tooltip) */}
+      {!schedule.published && missingByDay.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
+          <span className="font-medium text-warning">Faltam preencher:</span>
+          {missingByDay.map(m => (
+            <span key={m.date} className="rounded-md bg-warning/10 px-2 py-0.5 text-xs text-warning">
+              {m.label} <strong>({m.missing})</strong>
+            </span>
+          ))}
+          <span className="ml-auto text-xs text-muted-foreground">
+            Você ainda pode publicar — os slots vazios ficarão pendentes.
+          </span>
+        </div>
+      )}
 
       {/* ─── Week selector ──────────────────────────────────────── */}
       <Card variant="glass" className="flex items-center justify-between">
@@ -888,56 +924,88 @@ export default function EscalaPage() {
         {/* ─── Employee sidebar ──────────────────────────────────── */}
         <div className="w-full lg:w-72 xl:w-80">
           <Card variant="glass" className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Users className="h-4 w-4 text-primary" />
-              Colaboradores
+            <div className="flex items-center justify-between text-sm font-semibold text-foreground">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                Colaboradores
+              </div>
+              <span className="text-[10px] font-normal text-muted-foreground">
+                {employeePanelData.length} ativos
+              </span>
             </div>
             <div className="space-y-1.5">
               {employeePanelData.map((emp) => {
                 const bookingLevel =
                   emp.hoursWeek >= 40
                     ? 'full'
-                    : emp.hoursToday > 0
+                    : emp.hoursWeek > 0
                       ? 'partial'
                       : 'available'
+                const dayCost = emp.hoursToday * (emp.hourlyRate ?? 0)
                 return (
                   <div
                     key={emp.id}
                     className={cn(
-                      'flex items-center justify-between rounded-lg px-3 py-2 transition-colors',
-                      'cursor-grab border border-transparent hover:border-border hover:bg-muted/50',
+                      'rounded-lg border border-transparent px-3 py-2 transition-colors',
+                      'cursor-grab hover:border-border hover:bg-muted/40',
                     )}
                   >
-                    <div className="flex items-center gap-2">
-                      {/* Status indicator */}
-                      <div
-                        className={cn(
-                          'h-2 w-2 rounded-full',
-                          bookingLevel === 'available' && 'bg-success',
-                          bookingLevel === 'partial' && 'bg-warning',
-                          bookingLevel === 'full' && 'bg-destructive',
-                        )}
-                      />
-                      <div>
-                        <p className="text-xs font-medium text-foreground">
-                          {emp.nickname}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {ROLE_LABELS[emp.role] ?? emp.role}
-                        </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-start gap-2">
+                        <div
+                          className={cn(
+                            'mt-1.5 h-2 w-2 shrink-0 rounded-full',
+                            bookingLevel === 'available' && 'bg-success',
+                            bookingLevel === 'partial' && 'bg-warning',
+                            bookingLevel === 'full' && 'bg-destructive',
+                          )}
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold text-foreground">
+                            {emp.nickname || emp.name}
+                          </p>
+                          <p className="truncate text-[10px] text-muted-foreground">
+                            {ROLE_LABELS[emp.role] ?? emp.role} · {formatCurrency(emp.hourlyRate ?? 0)}/h
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-0.5 text-right">
+                        <span className={cn(
+                          'rounded px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                          emp.hoursWeek >= 44 ? 'bg-destructive/15 text-destructive' :
+                            emp.hoursWeek >= 36 ? 'bg-warning/15 text-warning' :
+                              'bg-success/15 text-success',
+                        )}>
+                          {emp.hoursWeek}h/sem
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {emp.hoursToday}h hoje
+                        </span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground">
-                        {emp.hoursToday}h hoje
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {emp.hoursWeek}h/sem
-                      </p>
-                    </div>
+                    {dayCost > 0 && (
+                      <div className="mt-1 flex items-center justify-between text-[10px]">
+                        <span className="text-muted-foreground">Custo do dia</span>
+                        <span className="font-mono font-semibold text-primary">
+                          {formatCurrency(dayCost)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )
               })}
+            </div>
+            {/* Legenda */}
+            <div className="flex items-center gap-3 border-t border-border pt-2 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-success" /> Livre
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-warning" /> Parcial
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-destructive" /> Cheio
+              </span>
             </div>
           </Card>
         </div>

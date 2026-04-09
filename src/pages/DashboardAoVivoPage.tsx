@@ -1,24 +1,32 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Activity, Users, CheckCircle, Clock, AlertTriangle, Radio } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppContext'
-import { cn } from '@/lib/utils'
+import { cn, todayBR } from '@/lib/utils'
 import { HOUR_RANGES } from '@/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0]
-}
-
 function currentHHMM(): string {
-  const now = new Date()
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  // Hora atual em America/Sao_Paulo (nunca usar getHours direto)
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date())
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(date)
 }
 
 /** Extract HH:MM from an ISO datetime string */
@@ -44,6 +52,7 @@ function isHourCurrent(range: string): boolean {
 
 export default function DashboardAoVivoPage() {
   const { state } = useApp()
+  const navigate = useNavigate()
   const [now, setNow] = useState(new Date())
 
   // Single interval: ticks every second for clock; uses a counter for 60s refresh
@@ -58,7 +67,7 @@ export default function DashboardAoVivoPage() {
     return () => clearInterval(tick)
   }, [])
 
-  const today = todayISO()
+  const today = todayBR()
 
   // Find today's schedule day across all week schedules
   const todaySchedule = useMemo(() => {
@@ -236,7 +245,7 @@ export default function DashboardAoVivoPage() {
   // ── Render ──────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="animate-fade-in space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -260,36 +269,44 @@ export default function DashboardAoVivoPage() {
         </div>
       </div>
 
-      {/* Section 1: Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="text-center">
-          <div className="flex flex-col items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            <p className="text-sm text-muted-foreground">Escalados hoje</p>
-            <p className="text-3xl font-bold text-foreground">{metrics.escalados}</p>
-          </div>
-        </Card>
-        <Card className="text-center">
-          <div className="flex flex-col items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-success" />
-            <p className="text-sm text-muted-foreground">Presentes</p>
-            <p className="text-3xl font-bold text-success">{metrics.presentes}</p>
-          </div>
-        </Card>
-        <Card className="text-center">
-          <div className="flex flex-col items-center gap-2">
-            <Clock className="h-5 w-5 text-warning" />
-            <p className="text-sm text-muted-foreground">Atrasados</p>
-            <p className="text-3xl font-bold text-warning">{metrics.atrasados}</p>
-          </div>
-        </Card>
-        <Card className="text-center">
-          <div className="flex flex-col items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            <p className="text-sm text-muted-foreground">Ausentes</p>
-            <p className="text-3xl font-bold text-destructive">{metrics.ausentes}</p>
-          </div>
-        </Card>
+      {/* Section 1: Metric Cards (clicáveis → navegam para detalhe) */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <button
+          type="button"
+          onClick={() => navigate('/escala')}
+          className="group rounded-xl border border-border bg-card p-5 text-center transition-all hover:border-primary/50 hover:bg-primary/5 active:scale-[0.98]"
+        >
+          <Users className="mx-auto h-6 w-6 text-primary transition-transform group-hover:scale-110" />
+          <p className="mt-2 text-sm text-muted-foreground">Escalados hoje</p>
+          <p className="mt-1 text-3xl font-bold text-foreground">{metrics.escalados}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/ponto')}
+          className="group rounded-xl border border-success/30 bg-success/5 p-5 text-center transition-all hover:border-success/60 hover:bg-success/10 active:scale-[0.98]"
+        >
+          <CheckCircle className="mx-auto h-6 w-6 text-success transition-transform group-hover:scale-110" />
+          <p className="mt-2 text-sm text-muted-foreground">Presentes</p>
+          <p className="mt-1 text-3xl font-bold text-success">{metrics.presentes}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/ponto')}
+          className="group rounded-xl border border-warning/30 bg-warning/5 p-5 text-center transition-all hover:border-warning/60 hover:bg-warning/10 active:scale-[0.98]"
+        >
+          <Clock className="mx-auto h-6 w-6 text-warning transition-transform group-hover:scale-110" />
+          <p className="mt-2 text-sm text-muted-foreground">Atrasados</p>
+          <p className="mt-1 text-3xl font-bold text-warning">{metrics.atrasados}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/ponto')}
+          className="group rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-center transition-all hover:border-destructive/60 hover:bg-destructive/10 active:scale-[0.98]"
+        >
+          <AlertTriangle className="mx-auto h-6 w-6 text-destructive transition-transform group-hover:scale-110" />
+          <p className="mt-2 text-sm text-muted-foreground">Ausentes</p>
+          <p className="mt-1 text-3xl font-bold text-destructive">{metrics.ausentes}</p>
+        </button>
       </div>
 
       {/* Section 2: Hour-by-hour Timeline */}

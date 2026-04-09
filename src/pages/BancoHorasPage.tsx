@@ -219,11 +219,9 @@ export default function BancoHorasPage() {
 
   return (
     <div className="space-y-4 p-3 sm:space-y-6 sm:p-4 lg:p-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-foreground">Banco de Horas</h2>
-          <p className="text-sm text-muted-foreground">Controle de horas extras e deficit</p>
-        </div>
+      <div>
+        <h2 className="text-lg font-bold text-foreground">Banco de Horas</h2>
+        <p className="text-sm text-muted-foreground">Controle de horas extras e deficit</p>
       </div>
 
       {/* Aviso legal: banco de horas informativo */}

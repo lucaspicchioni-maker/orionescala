@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const pageTitles: Record<string, string> = {
   '/': 'Inicio',
@@ -110,7 +111,11 @@ export function AppShell() {
 
         {/* Page content — bottom padding for mobile nav */}
         <main className="flex-1 pb-20 lg:pb-0">
-          <Outlet />
+          <div className="mx-auto w-full max-w-7xl">
+            <ErrorBoundary key={pathname}>
+              <Outlet />
+            </ErrorBoundary>
+          </div>
         </main>
       </div>
 
