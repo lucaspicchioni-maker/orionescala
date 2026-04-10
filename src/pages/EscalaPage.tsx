@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import {
   Plus,
@@ -31,6 +31,7 @@ import { HOUR_RANGES, MIN_SHIFT_HOURS } from '@/types'
 import type { WeekSchedule, ScheduleDayData } from '@/store/AppContext'
 import { generateNotificationsForSchedule } from '@/services/notifications'
 import { notifySchedulePublished } from '@/services/browserNotifications'
+import { forecastDemand } from '@/services/demandForecast'
 
 // ─── Constants ─────────────────────────────────────────────────────
 
@@ -147,6 +148,20 @@ function isEmployeeAssignedAtHour(
   return dayData.slots[slotIndex]?.assignments.some(
     (a) => a.employeeId === employeeId,
   ) ?? false
+}
+
+function patternToRange(
+  pattern: { startHour: number; endHour: number },
+  slots: { hour: string }[],
+): { startIdx: number; endIdx: number } | null {
+  const startStr = `${String(pattern.startHour).padStart(2, '0')}:00`
+  const startIdx = slots.findIndex((s) => s.hour.startsWith(startStr))
+  if (startIdx === -1) return null
+  const duration = pattern.endHour > pattern.startHour
+    ? pattern.endHour - pattern.startHour
+    : 24 - pattern.startHour + pattern.endHour
+  const endIdx = Math.min(startIdx + duration - 1, slots.length - 1)
+  return { startIdx, endIdx }
 }
 
 // ─── Modal backdrop ────────────────────────────────────────────────
@@ -278,6 +293,24 @@ export default function EscalaPage() {
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiOpen, setAiOpen] = useState(false)
 
+  // ─── Shift Patterns ────────────────────────────────────────────
+  type ShiftPattern = { id: string; name: string; startHour: number; endHour: number; color: string }
+  const [patterns, setPatterns] = useState<ShiftPattern[]>([])
+  const [quickPatternId, setQuickPatternId] = useState<string | null>(null)
+
+  // ─── Demand Forecast ───────────────────────────────────────────
+  type DemandEntry = { dayOfWeek: string; hour: string; orders: number; date: string }
+  const [demandHistory, setDemandHistory] = useState<DemandEntry[]>([])
+
+  useEffect(() => {
+    api.get<ShiftPattern[]>('/api/shift-patterns')
+      .then(setPatterns)
+      .catch(() => {})
+    api.get<DemandEntry[]>('/api/demand-history')
+      .then(data => setDemandHistory(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [])
+
   async function analyzeWithAI() {
     setAiLoading(true)
     setAiError(null)
@@ -356,6 +389,21 @@ export default function EscalaPage() {
       0,
     )
   }, [schedule])
+
+  // ─── Demand forecast para o dia selecionado ───────────────────
+  const dayForecast = useMemo(() => {
+    if (demandHistory.length === 0) return null
+    const selectedDayKey = schedule.days[selectedDayIndex]?.dayOfWeek
+    if (!selectedDayKey) return null
+    const forecast = forecastDemand(demandHistory, 8)
+    const daySlots = forecast.filter((f) => f.dayOfWeek === selectedDayKey)
+    if (daySlots.length === 0) return null
+    const totalPredicted = daySlots.reduce((s, f) => s + f.predictedOrders, 0)
+    const peakPeople = daySlots.reduce((s, f) => Math.max(s, f.suggestedPeople), 0)
+    const confidence = daySlots[0]?.confidence ?? 'low'
+    const dataPoints = daySlots[0]?.dataPoints ?? 0
+    return { totalPredicted, peakPeople, confidence, dataPoints }
+  }, [demandHistory, schedule, selectedDayIndex])
 
   const totalMissing = missingByDay.reduce((s, m) => s + m.missing, 0)
   const statusLabel = schedule.published
@@ -802,6 +850,27 @@ export default function EscalaPage() {
         })}
       </div>
 
+      {/* ─── Demand Forecast banner ──────────────────────────────── */}
+      {dayForecast && (
+        <div className="flex items-center gap-3 rounded-lg border border-accent/20 bg-accent/5 px-4 py-2.5 text-sm">
+          <span className="text-accent">
+            <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+            Previsão de demanda:
+          </span>
+          <span className="font-semibold text-foreground">
+            ~{dayForecast.totalPredicted} pedidos → pico de {dayForecast.peakPeople} {dayForecast.peakPeople === 1 ? 'pessoa' : 'pessoas'}
+          </span>
+          <span className={cn(
+            'ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+            dayForecast.confidence === 'high' ? 'bg-success/15 text-success' :
+            dayForecast.confidence === 'medium' ? 'bg-warning/15 text-warning' :
+            'bg-muted text-muted-foreground',
+          )}>
+            confiança {dayForecast.confidence === 'high' ? 'alta' : dayForecast.confidence === 'medium' ? 'média' : 'baixa'} · {dayForecast.dataPoints} sem.
+          </span>
+        </div>
+      )}
+
       {/* ─── Main content area ──────────────────────────────────── */}
       <div className="flex flex-col gap-4 lg:flex-row">
         {/* Schedule grid */}
@@ -1057,6 +1126,78 @@ export default function EscalaPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-destructive" /> Cheio
               </span>
             </div>
+
+            {/* ─── Painel Turno Rápido ─────────────────────────── */}
+            {patterns.length > 0 && !schedule.published && (
+              <div className="border-t border-border pt-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Escalar por Turno
+                </p>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {patterns.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setQuickPatternId(quickPatternId === p.id ? null : p.id)}
+                      style={quickPatternId === p.id
+                        ? { backgroundColor: p.color, color: '#fff', borderColor: p.color }
+                        : { borderColor: p.color, color: p.color }
+                      }
+                      className="rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-all"
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+                {quickPatternId && (() => {
+                  const pat = patterns.find((p) => p.id === quickPatternId)
+                  if (!pat || !selectedDay) return null
+                  const range = patternToRange(pat, selectedDay.slots)
+                  if (!range) return (
+                    <p className="text-[10px] text-destructive">Padrão fora do horário da grade</p>
+                  )
+                  const dur = range.endIdx - range.startIdx + 1
+                  return (
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground mb-1">
+                        {String(pat.startHour).padStart(2, '0')}h — {String(pat.endHour).padStart(2, '0')}h · {dur}h · Clique para escalar:
+                      </p>
+                      {activeEmployees.map((emp) => {
+                        const alreadyIn = selectedDay.slots
+                          .slice(range.startIdx, range.endIdx + 1)
+                          .some((s) => s.assignments.some((a) => a.employeeId === emp.id))
+                        return (
+                          <button
+                            key={emp.id}
+                            disabled={alreadyIn}
+                            onClick={() => {
+                              assignEmployeeRange(selectedDayIndex, range.startIdx, range.endIdx, emp.id)
+                              setQuickPatternId(null)
+                            }}
+                            className={cn(
+                              'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs transition-colors',
+                              alreadyIn
+                                ? 'cursor-not-allowed opacity-40 bg-muted/30'
+                                : 'bg-card hover:bg-muted',
+                            )}
+                          >
+                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                              {emp.name.charAt(0)}
+                            </div>
+                            <span className="truncate font-medium text-foreground">
+                              {emp.nickname || emp.name}
+                            </span>
+                            {alreadyIn && (
+                              <span className="ml-auto text-[10px] text-muted-foreground">já escalado</span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
           </Card>
         </div>
       </div>
@@ -1124,6 +1265,29 @@ export default function EscalaPage() {
               {' · '}
               {DAY_LABELS_FULL[currentDay?.dayOfWeek]}
             </p>
+
+            {/* Atalhos de padrão de turno */}
+            {patterns.length > 0 && (
+              <div className="mb-3">
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Turno Rápido</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {patterns.map((p) => {
+                    const dur = p.endHour > p.startHour ? p.endHour - p.startHour : 24 - p.startHour + p.endHour
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setAssignDuration(Math.min(dur, maxDuration))}
+                        style={{ borderColor: p.color, color: p.color }}
+                        className="rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-opacity hover:opacity-70"
+                      >
+                        {p.name} ({dur}h)
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Duration selector — multi-select de slots consecutivos */}
             <div className="mb-4 rounded-lg border border-border bg-card/50 p-3">
