@@ -143,6 +143,32 @@ export default function HomePage() {
 
   const hasOpsData = (oeeResult.scheduledHours > 0 || oeeResult.totalOrders > 0)
 
+  // ── OEE da semana anterior (comparativo) ────────────────────────
+  const prevWeekStart = useMemo(() => {
+    const d = new Date(weekStart + 'T12:00:00Z')
+    d.setUTCDate(d.getUTCDate() - 7)
+    return d.toISOString().split('T')[0]
+  }, [weekStart])
+
+  const prevSchedule = useMemo(
+    () => state.schedules.find(s => s.weekStart === prevWeekStart),
+    [state.schedules, prevWeekStart],
+  )
+
+  const prevOEE = useMemo(
+    () => calculateOEE({
+      schedule: prevSchedule,
+      pontoRecords: state.pontoRecords,
+      productivityRecords: state.productivityRecords,
+      targetOrdersPerHour,
+    }),
+    [prevSchedule, state.pontoRecords, state.productivityRecords, targetOrdersPerHour],
+  )
+
+  const oeeDelta = hasOpsData && prevOEE.scheduledHours > 0
+    ? Math.round(oeeResult.oee * 100) - Math.round(prevOEE.oee * 100)
+    : null
+
   // ── OEE Drill-down por colaborador ──────────────────────────────
   const [showOEEDrilldown, setShowOEEDrilldown] = useState(false)
 
@@ -453,9 +479,21 @@ export default function HomePage() {
                     {hasOpsData ? `${Math.round(oeeResult.oee * 100)}%` : '—'}
                   </p>
                   {hasOpsData ? (
-                    <p className="mt-1 text-xs font-medium uppercase text-muted-foreground">
-                      {oeeResult.classification}
-                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="text-xs font-medium uppercase text-muted-foreground">
+                        {oeeResult.classification}
+                      </span>
+                      {oeeDelta !== null && (
+                        <span className={cn(
+                          'rounded-md px-1.5 py-0.5 text-[10px] font-bold',
+                          oeeDelta > 0 ? 'bg-success/15 text-success' :
+                          oeeDelta < 0 ? 'bg-destructive/15 text-destructive' :
+                          'bg-muted text-muted-foreground',
+                        )}>
+                          {oeeDelta > 0 ? '↑' : oeeDelta < 0 ? '↓' : '='}{Math.abs(oeeDelta)}pp vs anterior
+                        </span>
+                      )}
+                    </div>
                   ) : (
                     <p className="mt-1 text-xs text-muted-foreground">Sem dados esta semana</p>
                   )}

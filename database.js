@@ -390,6 +390,22 @@ const migrations = [
   `ALTER TABLE employees ADD COLUMN rg TEXT DEFAULT ''`,
   `ALTER TABLE employees ADD COLUMN address TEXT DEFAULT ''`,
   `ALTER TABLE employees ADD COLUMN emergency_contact TEXT DEFAULT ''`,
+  // Manual check-in support
+  `ALTER TABLE ponto_records ADD COLUMN manual_check_in INTEGER DEFAULT 0`,
+  `ALTER TABLE ponto_records ADD COLUMN manual_check_in_by TEXT DEFAULT ''`,
+  `ALTER TABLE ponto_records ADD COLUMN manual_check_in_reason TEXT DEFAULT ''`,
+  // Employee warnings/advertências
+  `CREATE TABLE IF NOT EXISTS employee_warnings (
+    id TEXT PRIMARY KEY,
+    employee_id TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    date TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'verbal',
+    description TEXT NOT NULL,
+    witness TEXT DEFAULT '',
+    action_taken TEXT DEFAULT '',
+    created_by TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`,
 ]
 for (const sql of migrations) {
   try { db.exec(sql) } catch { /* column already exists */ }
@@ -1091,6 +1107,40 @@ export const appData = {
       ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`
     ).run(key, JSON.stringify(value))
   },
+}
+
+// ── Employee Warnings (Advertências) ───────────────────────────────────
+export const employeeWarnings = {
+  getByEmployee: (employeeId) => db.prepare(
+    'SELECT * FROM employee_warnings WHERE employee_id = ? ORDER BY date DESC'
+  ).all(employeeId),
+  getAll: (limit = 200) => db.prepare(
+    'SELECT * FROM employee_warnings ORDER BY date DESC LIMIT ?'
+  ).all(limit),
+  getRecent: (days = 30) => db.prepare(
+    `SELECT * FROM employee_warnings WHERE date >= date('now', '-' || ? || ' days') ORDER BY date DESC`
+  ).all(days),
+  create: (data) => {
+    const id = randomUUID()
+    db.prepare(`INSERT INTO employee_warnings
+      (id, employee_id, date, type, description, witness, action_taken, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, data.employeeId, data.date, data.type || 'verbal',
+      data.description, data.witness || '', data.actionTaken || '', data.createdBy)
+    return id
+  },
+  delete: (id) => db.prepare('DELETE FROM employee_warnings WHERE id = ?').run(id),
+  toFrontend: (row) => ({
+    id: row.id,
+    employeeId: row.employee_id,
+    date: row.date,
+    type: row.type,
+    description: row.description,
+    witness: row.witness,
+    actionTaken: row.action_taken,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+  }),
 }
 
 // ── Audit log de overrides CLT ─────────────────────────────────────────

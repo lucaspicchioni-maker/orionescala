@@ -14,10 +14,10 @@ import {
   users, employees, schedules, ponto, convocations, appData, getDb,
   bancoHoras, productivity, weeklyGoals, shiftSwaps, availabilities,
   feedbacks, shiftFeedbacks, badges, announcements, whatsappMessages,
-  vacationRequests, epis, climateSurveys, cltOverrides,
+  vacationRequests, epis, climateSurveys, cltOverrides, employeeWarnings,
 } from './database.js'
 import {
-  validateInterjornada, validateDSR,
+  validateInterjornada, validateDSR, validateIntrajornada,
   calculateNightMinutes, toCLTNightMinutes, isSundayOrHoliday,
   validateConvocationAdvanceNotice, calculateCancellationPenalty,
   clampBalanceForIntermittent,
@@ -700,7 +700,19 @@ app.post('/api/ponto', requireRole('admin', 'gerente', 'supervisor', 'colaborado
     }
     const record = { ...req.body, id: req.body.id || randomUUID() }
     savePontoAtomic(record)
-    res.json(record)
+
+    // Validar intrajornada (CLT Art. 71) — retorna warnings, não bloqueia
+    const intrajornadaWarnings = validateIntrajornada([{
+      employeeId: record.employeeId,
+      date: record.date,
+      workedMinutes: record.workedMinutes || 0,
+      breakMinutes: record.breakMinutes || 0,
+    }])
+
+    res.json({
+      ...record,
+      warnings: intrajornadaWarnings.length > 0 ? intrajornadaWarnings : undefined,
+    })
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
@@ -708,7 +720,48 @@ app.put('/api/ponto/:id', requireRole('admin', 'gerente', 'supervisor'), (req, r
   try {
     const record = { ...req.body, id: req.params.id }
     savePontoAtomic(record)
-    res.json({ ok: true })
+
+    // Validar intrajornada no update também
+    const intrajornadaWarnings = validateIntrajornada([{
+      employeeId: record.employeeId,
+      date: record.date,
+      workedMinutes: record.workedMinutes || 0,
+      breakMinutes: record.breakMinutes || 0,
+    }])
+
+    res.json({ ok: true, warnings: intrajornadaWarnings.length > 0 ? intrajornadaWarnings : undefined })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// Check-in manual — supervisor marca presença quando GPS falha
+app.post('/api/ponto/manual-checkin', requireRole('admin', 'gerente', 'supervisor'), (req, res) => {
+  try {
+    const { employeeId, date, reason } = req.body
+    if (!employeeId || !date) return res.status(400).json({ error: 'employeeId e date obrigatorios' })
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'date formato invalido (YYYY-MM-DD)' })
+
+    const now = new Date()
+    const checkInTime = now.toISOString()
+    const record = {
+      id: randomUUID(),
+      employeeId,
+      date,
+      status: 'on_time',
+      checkIn: checkInTime,
+      checkOut: null,
+      workedMinutes: 0,
+      breakMinutes: 0,
+      manualCheckIn: true,
+      manualCheckInBy: req.user.name,
+      manualCheckInReason: reason || 'GPS indisponível',
+      gpsLat: null,
+      gpsLng: null,
+      gpsAccuracy: null,
+      distanceMeters: null,
+    }
+
+    savePontoAtomic(record)
+    res.json({ ok: true, record })
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
@@ -889,7 +942,7 @@ app.post('/api/convocations/:id/cancel-by-employer', requireRole('admin', 'geren
 
 // ── App Data (generic KV) ───────────────────────────────────────────────
 
-const ALLOWED_KV_KEYS = new Set(['settings', 'whatsapp-config', 'location-config', 'notification-prefs', 'golden-rules'])
+const ALLOWED_KV_KEYS = new Set(['settings', 'whatsapp-config', 'location-config', 'notification-prefs', 'golden-rules', 'unit-config'])
 
 app.get('/api/data/:key', requireRole('admin', 'gerente', 'supervisor', 'rh', 'colaborador'), (req, res) => {
   try {
@@ -1413,6 +1466,104 @@ app.post('/api/whatsapp/test', requireRole('admin', 'gerente'), async (req, res)
     }
 
     res.json({ ok: true, provider: config.provider, providerId: result.providerId })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// ── Advertências / Warnings ────────────────────────────────────────────────
+
+app.get('/api/warnings', requireRole('admin', 'gerente', 'supervisor', 'rh'), (req, res) => {
+  try {
+    const employeeId = req.query.employeeId
+    const rows = employeeId
+      ? employeeWarnings.getByEmployee(employeeId)
+      : employeeWarnings.getAll()
+    res.json(rows.map(employeeWarnings.toFrontend))
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.post('/api/warnings', requireRole('admin', 'gerente', 'supervisor'), (req, res) => {
+  try {
+    const { employeeId, date, type, description, witness, actionTaken } = req.body
+    if (!employeeId || !date || !description) {
+      return res.status(400).json({ error: 'employeeId, date e description obrigatorios' })
+    }
+    const validTypes = ['verbal', 'written', 'suspension', 'termination']
+    if (type && !validTypes.includes(type)) {
+      return res.status(400).json({ error: `type deve ser: ${validTypes.join(', ')}` })
+    }
+    const id = employeeWarnings.create({
+      employeeId, date, type: type || 'verbal',
+      description, witness, actionTaken,
+      createdBy: req.user.name,
+    })
+    res.json({ id })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.delete('/api/warnings/:id', requireRole('admin'), (req, res) => {
+  try {
+    employeeWarnings.delete(req.params.id)
+    res.json({ ok: true })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// Risco de saída — colaboradores com 3+ faltas nos últimos 30 dias
+app.get('/api/turnover-risk', requireRole('admin', 'gerente', 'supervisor', 'rh'), (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30
+    const threshold = parseInt(req.query.threshold) || 3
+
+    // Busca faltas e atrasos recentes
+    const cutoff = todayBR(new Date(Date.now() - days * 86400000))
+    const allPonto = ponto.getAll()
+    const recentAbsences = allPonto.filter(p => p.date >= cutoff && p.status === 'absent')
+    const recentLates = allPonto.filter(p => p.date >= cutoff && p.status === 'late')
+
+    // Agrupa por employee
+    const riskMap = new Map()
+    for (const p of recentAbsences) {
+      if (!riskMap.has(p.employee_id)) riskMap.set(p.employee_id, { absences: 0, lates: 0 })
+      riskMap.get(p.employee_id).absences++
+    }
+    for (const p of recentLates) {
+      if (!riskMap.has(p.employee_id)) riskMap.set(p.employee_id, { absences: 0, lates: 0 })
+      riskMap.get(p.employee_id).lates++
+    }
+
+    // Busca advertências recentes
+    const recentWarnings = employeeWarnings.getRecent(days)
+    const warningMap = new Map()
+    for (const w of recentWarnings) {
+      warningMap.set(w.employee_id, (warningMap.get(w.employee_id) || 0) + 1)
+    }
+
+    const allEmps = employees.getAll()
+    const risks = []
+    for (const [empId, counts] of riskMap.entries()) {
+      const total = counts.absences + Math.floor(counts.lates / 2) // 2 atrasos = 1 falta equivalente
+      if (total < threshold) continue
+      const emp = allEmps.find(e => e.id === empId)
+      if (!emp || emp.status !== 'ativo') continue
+      const warningCount = warningMap.get(empId) || 0
+
+      let riskLevel = 'medium'
+      if (total >= threshold * 2 || warningCount >= 2) riskLevel = 'high'
+      if (total >= threshold * 3) riskLevel = 'critical'
+
+      risks.push({
+        employeeId: empId,
+        employeeName: emp.name,
+        absences: counts.absences,
+        lates: counts.lates,
+        warnings: warningCount,
+        riskLevel,
+        riskScore: total,
+        days,
+      })
+    }
+
+    risks.sort((a, b) => b.riskScore - a.riskScore)
+    res.json(risks)
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
