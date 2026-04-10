@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   MapPin,
   MessageCircle,
@@ -12,6 +12,10 @@ import {
   Sun,
   Moon,
   Palette,
+  Clock,
+  Plus,
+  Trash2,
+  Upload,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -43,13 +47,90 @@ export default function ConfiguracoesPage() {
   const [unitSaved, setUnitSaved] = useState(false)
 
   // Load unit config on mount
-  useState(() => {
+  useEffect(() => {
     api.get<{ targetOrdersPerHour?: number }>('/api/data/unit-config')
       .then(data => {
         if (data?.targetOrdersPerHour) setTargetOrdersPerHour(String(data.targetOrdersPerHour))
       })
       .catch(() => {})
-  })
+  }, [])
+
+  // Shift patterns CRUD
+  type ShiftPattern = { id: string; name: string; startHour: number; endHour: number; color: string; isActive: boolean }
+  const [patterns, setPatterns] = useState<ShiftPattern[]>([])
+  const [newPatName, setNewPatName] = useState('')
+  const [newPatStart, setNewPatStart] = useState('9')
+  const [newPatEnd, setNewPatEnd] = useState('13')
+  const [newPatColor, setNewPatColor] = useState('#22c55e')
+  const [patSaving, setPatSaving] = useState(false)
+
+  useEffect(() => {
+    api.get<ShiftPattern[]>('/api/shift-patterns/all')
+      .then(setPatterns)
+      .catch(() => {})
+  }, [])
+
+  const createPattern = async () => {
+    if (!newPatName.trim()) return
+    setPatSaving(true)
+    try {
+      await api.post('/api/shift-patterns', {
+        name: newPatName.trim(),
+        startHour: parseInt(newPatStart),
+        endHour: parseInt(newPatEnd),
+        color: newPatColor,
+      })
+      const updated = await api.get<ShiftPattern[]>('/api/shift-patterns/all')
+      setPatterns(updated)
+      setNewPatName('')
+    } finally {
+      setPatSaving(false)
+    }
+  }
+
+  const togglePattern = async (p: ShiftPattern) => {
+    await api.put(`/api/shift-patterns/${p.id}`, { ...p, isActive: !p.isActive })
+    setPatterns(prev => prev.map(x => x.id === p.id ? { ...x, isActive: !x.isActive } : x))
+  }
+
+  const deletePattern = async (id: string) => {
+    if (!confirm('Apagar este padrão?')) return
+    await api.del(`/api/shift-patterns/${id}`)
+    setPatterns(prev => prev.filter(x => x.id !== id))
+  }
+
+  // Demand history CSV paste
+  const [demandCsv, setDemandCsv] = useState('')
+  const [demandImporting, setDemandImporting] = useState(false)
+  const [demandResult, setDemandResult] = useState<string | null>(null)
+
+  const importDemandCsv = async () => {
+    const lines = demandCsv.trim().split('\n').filter(l => l.trim() && !l.startsWith('#'))
+    if (lines.length < 2) { setDemandResult('Cole ao menos uma linha de dados (além do header)'); return }
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
+    const entries = lines.slice(1).map(line => {
+      const cols = line.split(',').map(c => c.trim())
+      const get = (name: string) => cols[headers.indexOf(name)] ?? ''
+      return {
+        date: get('date'),
+        dayOfWeek: get('dayofweek') || get('dia'),
+        hour: get('hour') || get('hora'),
+        orders: parseInt(get('orders') || get('pedidos')) || 0,
+      }
+    }).filter(e => e.date && e.dayOfWeek && e.hour && e.orders > 0)
+
+    if (entries.length === 0) { setDemandResult('Nenhuma entrada válida encontrada.'); return }
+    setDemandImporting(true)
+    try {
+      await api.post('/api/demand-history', { entries })
+      setDemandResult(`${entries.length} entradas importadas com sucesso.`)
+      setDemandCsv('')
+    } catch (err) {
+      setDemandResult(err instanceof Error ? err.message : 'Erro ao importar')
+    } finally {
+      setDemandImporting(false)
+    }
+  }
 
   const saveUnitConfig = async () => {
     const payload = { targetOrdersPerHour: parseInt(targetOrdersPerHour) || 8 }
@@ -381,6 +462,131 @@ export default function ConfiguracoesPage() {
         >
           <Save className="h-4 w-4" />
           {waSaved ? 'Salvo!' : 'Salvar WhatsApp'}
+        </button>
+      </Card>
+
+      {/* ─── Padrões de Turno ─── */}
+      <Card>
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          Padroes de Turno
+        </h3>
+
+        {/* Lista */}
+        <div className="space-y-2 mb-4">
+          {patterns.length === 0 && (
+            <p className="text-xs text-muted-foreground">Nenhum padrão cadastrado.</p>
+          )}
+          {patterns.map(p => (
+            <div key={p.id} className="flex items-center gap-3 rounded-lg border border-border bg-card/50 px-3 py-2">
+              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
+              <span className="flex-1 text-sm font-medium text-foreground">{p.name}</span>
+              <span className="text-xs text-muted-foreground font-mono">
+                {String(p.startHour).padStart(2,'0')}h–{String(p.endHour).padStart(2,'0')}h
+              </span>
+              <button
+                onClick={() => togglePattern(p)}
+                className={cn(
+                  'rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors',
+                  p.isActive ? 'bg-success/15 text-success hover:bg-success/25' : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                )}
+              >
+                {p.isActive ? 'Ativo' : 'Inativo'}
+              </button>
+              <button
+                onClick={() => deletePattern(p.id)}
+                className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Criar novo */}
+        <div className="border-t border-border pt-4">
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">Novo Padrão</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <input
+              type="text"
+              placeholder="Nome (ex: Abertura)"
+              value={newPatName}
+              onChange={e => setNewPatName(e.target.value)}
+              className="col-span-2 sm:col-span-1 rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
+            />
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-muted-foreground shrink-0">De:</label>
+              <input
+                type="number"
+                min="0" max="23"
+                value={newPatStart}
+                onChange={e => setNewPatStart(e.target.value)}
+                className="w-full rounded-lg border border-border bg-input px-2 py-2 text-sm text-foreground"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-muted-foreground shrink-0">Até:</label>
+              <input
+                type="number"
+                min="0" max="23"
+                value={newPatEnd}
+                onChange={e => setNewPatEnd(e.target.value)}
+                className="w-full rounded-lg border border-border bg-input px-2 py-2 text-sm text-foreground"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={newPatColor}
+                onChange={e => setNewPatColor(e.target.value)}
+                className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border border-border"
+              />
+              <button
+                onClick={createPattern}
+                disabled={patSaving || !newPatName.trim()}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4" />
+                {patSaving ? 'Salvando...' : 'Criar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* ─── Import Histórico de Demanda ─── */}
+      <Card>
+        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <Upload className="h-4 w-4" />
+          Historico de Demanda (CSV)
+        </h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Cole dados de pedidos por hora (iFood/Rappi/planilha) para ativar o forecast na escala.
+          Formato: <code className="rounded bg-muted px-1">date, dayOfWeek, hour, orders</code>
+          &nbsp;— ex: <code className="rounded bg-muted px-1">2026-04-07, segunda, 12:00, 45</code>
+        </p>
+        <textarea
+          value={demandCsv}
+          onChange={e => setDemandCsv(e.target.value)}
+          rows={5}
+          placeholder={'date,dayOfWeek,hour,orders\n2026-04-07,segunda,12:00,45\n2026-04-07,segunda,13:00,52'}
+          className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-xs font-mono text-foreground resize-y"
+        />
+        {demandResult && (
+          <p className={cn(
+            'mt-2 text-xs',
+            demandResult.includes('sucesso') ? 'text-success' : 'text-destructive',
+          )}>
+            {demandResult}
+          </p>
+        )}
+        <button
+          onClick={importDemandCsv}
+          disabled={demandImporting || !demandCsv.trim()}
+          className="mt-3 flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          <Upload className="h-4 w-4" />
+          {demandImporting ? 'Importando...' : 'Importar'}
         </button>
       </Card>
 

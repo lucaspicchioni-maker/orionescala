@@ -62,6 +62,16 @@ export default function HomePage() {
       .catch(() => {})
   }, [])
 
+  // Turnover Risk — só gerente/admin
+  type TurnoverRisk = { employeeId: string; employeeName: string; absences: number; lates: number; warnings: number; riskLevel: 'medium' | 'high' | 'critical'; riskScore: number }
+  const [turnoverRisks, setTurnoverRisks] = useState<TurnoverRisk[]>([])
+  useEffect(() => {
+    if (currentUser.role !== 'gerente' && currentUser.role !== 'admin') return
+    api.get<TurnoverRisk[]>('/api/turnover-risk')
+      .then(data => setTurnoverRisks(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [currentUser.role])
+
   // Today's schedule
   const todaySchedule = useMemo(() => {
     for (const schedule of state.schedules) {
@@ -456,6 +466,43 @@ export default function HomePage() {
       {/* ── GERENTE / ADMIN ── */}
       {(currentUser.role === 'gerente' || currentUser.role === 'admin') && (
         <>
+          {/* ═══ Alerta de Risco de Saída ═══════════════════════════ */}
+          {turnoverRisks.length > 0 && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <span className="text-sm font-semibold text-destructive">
+                  {turnoverRisks.length} {turnoverRisks.length === 1 ? 'colaborador em risco' : 'colaboradores em risco'} de saída
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {turnoverRisks.map((r) => (
+                  <div key={r.employeeId} className={cn(
+                    'flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs',
+                    r.riskLevel === 'critical' ? 'bg-destructive/20 text-destructive' :
+                    r.riskLevel === 'high' ? 'bg-warning/20 text-warning' :
+                    'bg-muted text-muted-foreground',
+                  )}>
+                    <span className="font-semibold">{r.employeeName}</span>
+                    <span className="opacity-70">
+                      {r.absences > 0 && `${r.absences}F `}
+                      {r.lates > 0 && `${r.lates}A `}
+                      {r.warnings > 0 && `${r.warnings}Adv`}
+                    </span>
+                    <span className={cn(
+                      'rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase',
+                      r.riskLevel === 'critical' ? 'bg-destructive text-white' :
+                      r.riskLevel === 'high' ? 'bg-warning text-white' :
+                      'bg-muted-foreground/30 text-foreground',
+                    )}>
+                      {r.riskLevel === 'critical' ? 'Crítico' : r.riskLevel === 'high' ? 'Alto' : 'Médio'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ═══ KPIs Norte: OEE + Cost per Order ═════════════════════ */}
           <div className="grid gap-3 sm:grid-cols-2">
             {/* OEE Card */}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Plus,
   Search,
@@ -9,6 +9,7 @@ import {
   MessageCircle,
   KeyRound,
   Loader2,
+  AlertTriangle,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
@@ -129,7 +130,18 @@ export default function ColaboradoresPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<EmployeeForm>(emptyForm)
-  const [modalTab, setModalTab] = useState<'pessoal' | 'contrato' | 'outros'>('pessoal')
+  const [modalTab, setModalTab] = useState<'pessoal' | 'contrato' | 'outros' | 'advertencias'>('pessoal')
+
+  // Advertências do colaborador sendo editado
+  type Warning = { id: string; date: string; type: string; description: string; witness: string; actionTaken: string; createdBy: string }
+  const [warnings, setWarnings] = useState<Warning[]>([])
+  useEffect(() => {
+    if (modalTab === 'advertencias' && editingId) {
+      api.get<Warning[]>(`/api/warnings?employeeId=${editingId}`)
+        .then(setWarnings)
+        .catch(() => setWarnings([]))
+    }
+  }, [modalTab, editingId])
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null)
@@ -438,10 +450,11 @@ export default function ColaboradoresPage() {
               { key: 'pessoal', label: 'Dados Pessoais' },
               { key: 'contrato', label: 'Contrato' },
               { key: 'outros', label: 'Endereco / Outros' },
+              ...(editingId ? [{ key: 'advertencias', label: 'Advertências' }] : []),
             ] as const).map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setModalTab(tab.key)}
+                onClick={() => setModalTab(tab.key as 'pessoal' | 'contrato' | 'outros' | 'advertencias')}
                 className={cn(
                   'flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors',
                   modalTab === tab.key
@@ -705,6 +718,50 @@ export default function ColaboradoresPage() {
                   placeholder="Informacoes adicionais..."
                 />
               </div>
+            </div>
+          )}
+
+          {/* ── Tab: Advertências ─────────────────────────────────── */}
+          {modalTab === 'advertencias' && (
+            <div className="space-y-3">
+              {warnings.length === 0 ? (
+                <div className="rounded-lg border border-border bg-card/50 px-4 py-6 text-center text-sm text-muted-foreground">
+                  Nenhuma advertência registrada para este colaborador.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {warnings.map(w => (
+                    <div key={w.id} className="rounded-lg border border-border bg-card/50 px-4 py-3 text-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className={cn(
+                            'h-4 w-4 shrink-0',
+                            w.type === 'termination' ? 'text-destructive' :
+                            w.type === 'suspension' ? 'text-warning' : 'text-muted-foreground',
+                          )} />
+                          <span className="font-semibold text-foreground capitalize">
+                            {w.type === 'verbal' ? 'Verbal' :
+                             w.type === 'written' ? 'Escrita' :
+                             w.type === 'suspension' ? 'Suspensão' : 'Desligamento'}
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted-foreground font-mono">{w.date}</span>
+                      </div>
+                      <p className="mt-1.5 text-muted-foreground">{w.description}</p>
+                      {w.actionTaken && (
+                        <p className="mt-1 text-xs text-muted-foreground">Ação: {w.actionTaken}</p>
+                      )}
+                      {w.witness && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">Testemunha: {w.witness}</p>
+                      )}
+                      <p className="mt-1 text-[10px] text-muted-foreground/60">Registrado por: {w.createdBy}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Para registrar nova advertência, acesse a página <strong>Advertências</strong> no menu.
+              </p>
             </div>
           )}
 

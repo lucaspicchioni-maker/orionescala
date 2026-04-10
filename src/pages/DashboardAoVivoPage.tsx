@@ -1,11 +1,14 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, Users, CheckCircle, Clock, AlertTriangle, Radio } from 'lucide-react'
+import { Activity, Users, CheckCircle, Clock, AlertTriangle, Radio, Fingerprint } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppContext'
+import { useToast } from '@/components/ui/Toast'
 import { cn, todayBR } from '@/lib/utils'
 import { HOUR_RANGES } from '@/types'
+import { api } from '@/lib/api'
+import type { PontoRecord } from '@/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -51,9 +54,13 @@ function isHourCurrent(range: string): boolean {
 // ── Component ────────────────────────────────────────────────────────────
 
 export default function DashboardAoVivoPage() {
-  const { state } = useApp()
+  const { state, dispatch } = useApp()
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [now, setNow] = useState(new Date())
+  const [manualCheckin, setManualCheckin] = useState<{ id: string; name: string } | null>(null)
+  const [manualReason, setManualReason] = useState('GPS indisponível')
+  const [manualLoading, setManualLoading] = useState(false)
 
   // Single interval: ticks every second for clock; uses a counter for 60s refresh
   useEffect(() => {
@@ -68,6 +75,25 @@ export default function DashboardAoVivoPage() {
   }, [])
 
   const today = todayBR()
+
+  async function doManualCheckin() {
+    if (!manualCheckin) return
+    setManualLoading(true)
+    try {
+      const result = await api.post<{ ok: boolean; record: PontoRecord }>(
+        '/api/ponto/manual-checkin',
+        { employeeId: manualCheckin.id, date: today, reason: manualReason },
+      )
+      dispatch({ type: 'ADD_PONTO', payload: result.record })
+      toast('success', `Check-in manual de ${manualCheckin.name} registrado.`)
+      setManualCheckin(null)
+      setManualReason('GPS indisponível')
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Erro ao registrar check-in')
+    } finally {
+      setManualLoading(false)
+    }
+  }
 
   // Find today's schedule day across all week schedules
   const todaySchedule = useMemo(() => {
@@ -371,6 +397,7 @@ export default function DashboardAoVivoPage() {
                   <th className="text-left py-2 px-3 font-medium">Horario</th>
                   <th className="text-left py-2 px-3 font-medium">Check-in</th>
                   <th className="text-left py-2 px-3 font-medium">Status</th>
+                  <th className="py-2 px-3" />
                 </tr>
               </thead>
               <tbody>
@@ -382,6 +409,18 @@ export default function DashboardAoVivoPage() {
                       {row.checkInTime ?? '--:--'}
                     </td>
                     <td className="py-2.5 px-3">{statusBadge(row.status)}</td>
+                    <td className="py-2.5 px-3">
+                      {(row.status === 'ausente' || row.status === 'aguardando') && (
+                        <button
+                          onClick={() => setManualCheckin({ id: row.id, name: row.name })}
+                          className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                          title="Registrar check-in manual (GPS falhou)"
+                        >
+                          <Fingerprint className="h-3 w-3" />
+                          Manual
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -433,6 +472,55 @@ export default function DashboardAoVivoPage() {
       <p className="text-center text-xs text-muted-foreground">
         Atualizacao automatica a cada 60 segundos
       </p>
+
+      {/* ─── Modal check-in manual ──────────────────────────────── */}
+      {manualCheckin && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setManualCheckin(null)}
+        >
+          <div
+            className="glass-strong mx-4 w-full max-w-sm rounded-xl p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <Fingerprint className="h-6 w-6 text-primary" />
+              <div>
+                <h3 className="text-base font-bold text-foreground">Check-in Manual</h3>
+                <p className="text-xs text-muted-foreground">{manualCheckin.name}</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Registra a presença agora ({new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}) sem GPS. O motivo ficará no histórico.
+            </p>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Motivo</label>
+              <input
+                type="text"
+                value={manualReason}
+                onChange={(e) => setManualReason(e.target.value)}
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                placeholder="GPS indisponível"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setManualCheckin(null)}
+                className="flex-1 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/80"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={doManualCheckin}
+                disabled={manualLoading}
+                className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {manualLoading ? 'Registrando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
