@@ -51,28 +51,35 @@ function isHourCurrent(range: string): boolean {
   return now >= start && now < end
 }
 
+// ── Live clock isolado — só este sub-componente re-renderiza a cada segundo ──
+
+function LiveClock() {
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const tick = setInterval(() => setNow(new Date()), 1_000)
+    return () => clearInterval(tick)
+  }, [])
+  return (
+    <div className="text-right">
+      <p className="text-3xl font-mono font-bold text-foreground tabular-nums">
+        {formatTime(now)}
+      </p>
+      <p className="text-sm text-muted-foreground">
+        {now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+      </p>
+    </div>
+  )
+}
+
 // ── Component ────────────────────────────────────────────────────────────
 
 export default function DashboardAoVivoPage() {
   const { state, dispatch } = useApp()
   const navigate = useNavigate()
   const { toast } = useToast()
-  const [now, setNow] = useState(new Date())
   const [manualCheckin, setManualCheckin] = useState<{ id: string; name: string } | null>(null)
   const [manualReason, setManualReason] = useState('GPS indisponível')
   const [manualLoading, setManualLoading] = useState(false)
-
-  // Single interval: ticks every second for clock; uses a counter for 60s refresh
-  useEffect(() => {
-    let ticks = 0
-    const tick = setInterval(() => {
-      ticks++
-      setNow(new Date())
-      // Every 60 ticks (60s), force a re-render to refresh data
-      if (ticks >= 60) ticks = 0
-    }, 1_000)
-    return () => clearInterval(tick)
-  }, [])
 
   const today = todayBR()
 
@@ -285,14 +292,7 @@ export default function DashboardAoVivoPage() {
             Ao Vivo
           </span>
         </div>
-        <div className="text-right">
-          <p className="text-3xl font-mono font-bold text-foreground tabular-nums">
-            {formatTime(now)}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
-          </p>
-        </div>
+        <LiveClock />
       </div>
 
       {/* Section 1: Metric Cards (clicáveis → navegam para detalhe) */}

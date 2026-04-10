@@ -1576,7 +1576,10 @@ app.get('/api/turnover-risk', requireRole('admin', 'gerente', 'supervisor', 'rh'
     const threshold = parseInt(req.query.threshold) || 3
 
     // Busca faltas e atrasos recentes
-    const cutoff = todayBR(new Date(Date.now() - days * 86400000))
+    const cutoffDate = new Date(Date.now() - days * 86400000)
+    const cutoff = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(cutoffDate)
     const allPonto = ponto.getAll()
     const recentAbsences = allPonto.filter(p => p.date >= cutoff && p.status === 'absent')
     const recentLates = allPonto.filter(p => p.date >= cutoff && p.status === 'late')
