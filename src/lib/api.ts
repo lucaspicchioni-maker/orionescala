@@ -29,7 +29,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
   if (res.status === 401) {
     clearToken()
-    window.location.href = '/'
+    // Limpa currentUser — sem isso o loop é infinito (home page chama API → 401 → / → home page → ...)
+    localStorage.removeItem('orion_current_user')
+    window.location.reload()
     throw new Error('Sessao expirada')
   }
 

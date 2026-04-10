@@ -312,7 +312,7 @@ app.post('/api/auth/login', loginLimiter, (req, res) => {
     const token = jwt.sign(
       { id: user.id, name: user.name, role: user.role, employeeId: user.employee_id },
       _JWT_SECRET,
-      { expiresIn: '8h' }
+      { expiresIn: '30d' }
     )
 
     res.json({
