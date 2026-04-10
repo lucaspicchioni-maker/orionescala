@@ -43,6 +43,7 @@ const VacoesPage = lazy(() => import('@/pages/VacoesPage'))
 const EPIsPage = lazy(() => import('@/pages/EPIsPage'))
 const ClimaPesquisaPage = lazy(() => import('@/pages/ClimaPesquisaPage'))
 const CltOverridesPage = lazy(() => import('@/pages/CltOverridesPage'))
+const AdvertenciasPage = lazy(() => import('@/pages/AdvertenciasPage'))
 
 const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/': ['admin', 'gerente', 'supervisor', 'rh', 'colaborador'],
@@ -79,6 +80,7 @@ const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/epis': ['admin', 'gerente', 'rh', 'supervisor'],
   '/clima': ['admin', 'gerente', 'rh', 'supervisor', 'colaborador'],
   '/clt-overrides': ['admin', 'rh', 'gerente'],
+  '/advertencias': ['admin', 'gerente', 'supervisor', 'rh'],
 }
 
 // Watches for urgent announcements after API data loads and shows toast notifications
@@ -175,6 +177,7 @@ function AppRoutes() {
           <Route path="/epis" element={<RoleGuard path="/epis"><EPIsPage /></RoleGuard>} />
           <Route path="/clima" element={<RoleGuard path="/clima"><ClimaPesquisaPage /></RoleGuard>} />
           <Route path="/clt-overrides" element={<RoleGuard path="/clt-overrides"><CltOverridesPage /></RoleGuard>} />
+          <Route path="/advertencias" element={<RoleGuard path="/advertencias"><AdvertenciasPage /></RoleGuard>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

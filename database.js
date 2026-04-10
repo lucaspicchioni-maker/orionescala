@@ -394,6 +394,16 @@ const migrations = [
   `ALTER TABLE ponto_records ADD COLUMN manual_check_in INTEGER DEFAULT 0`,
   `ALTER TABLE ponto_records ADD COLUMN manual_check_in_by TEXT DEFAULT ''`,
   `ALTER TABLE ponto_records ADD COLUMN manual_check_in_reason TEXT DEFAULT ''`,
+  // Shift patterns (padrões de turno configuráveis)
+  `CREATE TABLE IF NOT EXISTS shift_patterns (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    start_hour TEXT NOT NULL,
+    end_hour TEXT NOT NULL,
+    color TEXT DEFAULT '#22c55e',
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`,
   // Employee warnings/advertências
   `CREATE TABLE IF NOT EXISTS employee_warnings (
     id TEXT PRIMARY KEY,
@@ -1108,6 +1118,51 @@ export const appData = {
     ).run(key, JSON.stringify(value))
   },
 }
+
+// ── Shift Patterns (Padrões de turno) ──────────────────────────────────
+export const shiftPatterns = {
+  getAll: () => db.prepare('SELECT * FROM shift_patterns ORDER BY start_hour').all(),
+  getActive: () => db.prepare('SELECT * FROM shift_patterns WHERE is_active = 1 ORDER BY start_hour').all(),
+  getById: (id) => db.prepare('SELECT * FROM shift_patterns WHERE id = ?').get(id),
+  create: (data) => {
+    const id = randomUUID()
+    db.prepare(`INSERT INTO shift_patterns (id, name, start_hour, end_hour, color) VALUES (?, ?, ?, ?, ?)`)
+      .run(id, data.name, data.startHour, data.endHour, data.color || '#22c55e')
+    return id
+  },
+  update: (id, data) => {
+    db.prepare(`UPDATE shift_patterns SET name=?, start_hour=?, end_hour=?, color=?, is_active=? WHERE id=?`)
+      .run(data.name, data.startHour, data.endHour, data.color || '#22c55e', data.isActive ? 1 : 0, id)
+  },
+  delete: (id) => db.prepare('DELETE FROM shift_patterns WHERE id = ?').run(id),
+  toFrontend: (row) => ({
+    id: row.id,
+    name: row.name,
+    startHour: row.start_hour,
+    endHour: row.end_hour,
+    color: row.color,
+    isActive: !!row.is_active,
+    createdAt: row.created_at,
+  }),
+}
+
+// Seed de padrões default se tabela vazia
+try {
+  const patternCount = db.prepare('SELECT COUNT(*) as c FROM shift_patterns').get()
+  if (patternCount.c === 0) {
+    const defaultPatterns = [
+      { name: 'Abertura', startHour: '09:00', endHour: '13:00', color: '#22c55e' },
+      { name: 'Almoço', startHour: '11:00', endHour: '15:00', color: '#eab308' },
+      { name: 'Tarde', startHour: '14:00', endHour: '18:00', color: '#3b82f6' },
+      { name: 'Janta', startHour: '18:00', endHour: '22:00', color: '#a855f7' },
+      { name: 'Fechamento', startHour: '20:00', endHour: '00:00', color: '#ef4444' },
+    ]
+    for (const p of defaultPatterns) {
+      shiftPatterns.create(p)
+    }
+    console.log(`✅ ${defaultPatterns.length} padrões de turno criados`)
+  }
+} catch { /* tabela pode não existir no primeiro exec */ }
 
 // ── Employee Warnings (Advertências) ───────────────────────────────────
 export const employeeWarnings = {

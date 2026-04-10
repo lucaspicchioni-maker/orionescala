@@ -15,6 +15,7 @@ import {
   bancoHoras, productivity, weeklyGoals, shiftSwaps, availabilities,
   feedbacks, shiftFeedbacks, badges, announcements, whatsappMessages,
   vacationRequests, epis, climateSurveys, cltOverrides, employeeWarnings,
+  shiftPatterns,
 } from './database.js'
 import {
   validateInterjornada, validateDSR, validateIntrajornada,
@@ -942,7 +943,7 @@ app.post('/api/convocations/:id/cancel-by-employer', requireRole('admin', 'geren
 
 // ── App Data (generic KV) ───────────────────────────────────────────────
 
-const ALLOWED_KV_KEYS = new Set(['settings', 'whatsapp-config', 'location-config', 'notification-prefs', 'golden-rules', 'unit-config'])
+const ALLOWED_KV_KEYS = new Set(['settings', 'whatsapp-config', 'location-config', 'notification-prefs', 'golden-rules', 'unit-config', 'demand-history'])
 
 app.get('/api/data/:key', requireRole('admin', 'gerente', 'supervisor', 'rh', 'colaborador'), (req, res) => {
   try {
@@ -1466,6 +1467,67 @@ app.post('/api/whatsapp/test', requireRole('admin', 'gerente'), async (req, res)
     }
 
     res.json({ ok: true, provider: config.provider, providerId: result.providerId })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// ── Demand Forecast (Previsão de demanda) ──────────────────────────────────
+
+// Upload de histórico iFood por slot (CSV já processado pelo frontend csvImport)
+app.post('/api/demand-history', requireRole('admin', 'gerente'), (req, res) => {
+  try {
+    const { entries } = req.body
+    if (!Array.isArray(entries)) return res.status(400).json({ error: 'entries deve ser array' })
+    // Salva no KV como append
+    const existing = appData.get('demand-history') || []
+    const merged = [...existing, ...entries]
+    // Manter últimas 2000 entradas (performance)
+    const trimmed = merged.slice(-2000)
+    appData.set('demand-history', trimmed)
+    res.json({ ok: true, total: trimmed.length })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.get('/api/demand-history', requireRole('admin', 'gerente', 'supervisor'), (req, res) => {
+  try {
+    const data = appData.get('demand-history') || []
+    res.json(data)
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// ── Shift Patterns (Padrões de turno) ──────────────────────────────────────
+
+app.get('/api/shift-patterns', requireRole('admin', 'gerente', 'supervisor', 'rh'), (req, res) => {
+  try {
+    res.json(shiftPatterns.getActive().map(shiftPatterns.toFrontend))
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.get('/api/shift-patterns/all', requireRole('admin', 'gerente'), (req, res) => {
+  try {
+    res.json(shiftPatterns.getAll().map(shiftPatterns.toFrontend))
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.post('/api/shift-patterns', requireRole('admin', 'gerente'), (req, res) => {
+  try {
+    const { name, startHour, endHour, color } = req.body
+    if (!name || !startHour || !endHour) return res.status(400).json({ error: 'name, startHour e endHour obrigatorios' })
+    const id = shiftPatterns.create({ name, startHour, endHour, color })
+    res.json({ id })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.put('/api/shift-patterns/:id', requireRole('admin', 'gerente'), (req, res) => {
+  try {
+    shiftPatterns.update(req.params.id, req.body)
+    res.json({ ok: true })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+app.delete('/api/shift-patterns/:id', requireRole('admin'), (req, res) => {
+  try {
+    shiftPatterns.delete(req.params.id)
+    res.json({ ok: true })
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 

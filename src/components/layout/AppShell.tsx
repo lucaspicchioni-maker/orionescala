@@ -35,6 +35,7 @@ const pageTitles: Record<string, string> = {
   '/recibo': 'Recibo de Pagamento',
   '/convocacoes': 'Convocacoes',
   '/clt-overrides': 'Auditoria CLT',
+  '/advertencias': 'Advertencias',
 }
 
 function formatDatePt(): string {
