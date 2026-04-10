@@ -22,6 +22,7 @@ import {
   validateConvocationAdvanceNotice, calculateCancellationPenalty,
   clampBalanceForIntermittent,
 } from './cltRules.js'
+import { sendWhatsApp } from './whatsappSender.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -1342,6 +1343,76 @@ app.post('/api/whatsapp/log', requireRole('admin', 'gerente'), (req, res) => {
   try {
     const id = whatsappMessages.log(req.body)
     res.json({ id })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// Envia mensagem real via provider configurado (Z-API / Evolution)
+app.post('/api/whatsapp/send', requireRole('admin', 'gerente'), async (req, res) => {
+  try {
+    const { employeeId, phone: rawPhone, message, type } = req.body
+    if (!message) return res.status(400).json({ error: 'Mensagem obrigatória' })
+
+    // Carrega config do KV
+    const config = appData.get('whatsapp-config')
+    if (!config) {
+      return res.status(400).json({ error: 'Configuração WhatsApp não encontrada. Configure em /configuracoes' })
+    }
+
+    // Se phone não veio, tenta pegar do employee
+    let phone = rawPhone
+    if (!phone && employeeId) {
+      const emp = employees.getById ? employees.getById(employeeId) : null
+      phone = emp?.phone || ''
+    }
+    if (!phone) {
+      return res.status(400).json({ error: 'Telefone não encontrado' })
+    }
+
+    // Chama o sender
+    const result = await sendWhatsApp(config, { phone, message })
+
+    // Registra no log sempre (mesmo quando falha — pra auditoria)
+    try {
+      whatsappMessages.log({
+        employeeId: employeeId || '',
+        phone,
+        message,
+        type: type || 'custom',
+        status: result.ok ? 'sent' : 'failed',
+      })
+    } catch (logErr) {
+      console.error('[WA] falha ao logar mensagem:', logErr?.message || logErr)
+    }
+
+    if (!result.ok) {
+      return res.status(502).json({ error: result.error, provider: config.provider })
+    }
+
+    res.json({ ok: true, providerId: result.providerId, status: result.status })
+  } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
+})
+
+// Teste de conexão com o provider — útil ao configurar
+app.post('/api/whatsapp/test', requireRole('admin', 'gerente'), async (req, res) => {
+  try {
+    const { phone } = req.body
+    if (!phone) return res.status(400).json({ error: 'Telefone de teste obrigatório' })
+
+    const config = appData.get('whatsapp-config')
+    if (!config) {
+      return res.status(400).json({ error: 'Configuração WhatsApp não encontrada' })
+    }
+
+    const result = await sendWhatsApp(config, {
+      phone,
+      message: `🤖 Teste de integração Orion Escala\n\nSe você recebeu esta mensagem, a configuração do provider ${config.provider} está OK.\n\nEnviado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`,
+    })
+
+    if (!result.ok) {
+      return res.status(502).json({ ok: false, error: result.error, provider: config.provider })
+    }
+
+    res.json({ ok: true, provider: config.provider, providerId: result.providerId })
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 

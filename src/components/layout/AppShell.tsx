@@ -34,6 +34,7 @@ const pageTitles: Record<string, string> = {
   '/whatsapp': 'WhatsApp',
   '/recibo': 'Recibo de Pagamento',
   '/convocacoes': 'Convocacoes',
+  '/clt-overrides': 'Auditoria CLT',
 }
 
 function formatDatePt(): string {
