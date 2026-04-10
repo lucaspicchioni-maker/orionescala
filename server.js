@@ -1798,6 +1798,60 @@ function calculateShiftHours(start, end) {
   return (endMin - startMin) / 60
 }
 
+// ── Turnover Risk — check diário automático ─────────────────────────────
+
+function checkTurnoverRisk() {
+  try {
+    const db = getDb()
+    // Evita spam: só cria alerta se não existe um dos últimas 23h
+    const recent = db.prepare(
+      "SELECT id FROM announcements WHERE title LIKE '🚨 Alerta Turnover%' AND created_at > datetime('now', '-23 hours')"
+    ).get()
+    if (recent) return
+
+    const days = 30
+    const threshold = 3
+    const cutoffDate = new Date(Date.now() - days * 86400000)
+    const cutoff = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(cutoffDate)
+
+    const allPonto = ponto.getAll()
+    const riskMap = new Map()
+    for (const p of allPonto.filter(p => p.date >= cutoff && p.status === 'absent')) {
+      if (!riskMap.has(p.employee_id)) riskMap.set(p.employee_id, { absences: 0, lates: 0 })
+      riskMap.get(p.employee_id).absences++
+    }
+    for (const p of allPonto.filter(p => p.date >= cutoff && p.status === 'late')) {
+      if (!riskMap.has(p.employee_id)) riskMap.set(p.employee_id, { absences: 0, lates: 0 })
+      riskMap.get(p.employee_id).lates++
+    }
+
+    const allEmps = employees.getAll()
+    const highRisks = []
+    for (const [empId, counts] of riskMap.entries()) {
+      const total = counts.absences + Math.floor(counts.lates / 2)
+      if (total < threshold * 2) continue // só high/critical (score >= 6)
+      const emp = allEmps.find(e => e.id === empId)
+      if (!emp || emp.status !== 'ativo') continue
+      highRisks.push(`${emp.name} (${counts.absences}F ${counts.lates}A)`)
+    }
+
+    if (highRisks.length > 0) {
+      announcements.create({
+        title: `🚨 Alerta Turnover — ${highRisks.length} colaborador(es) em risco alto`,
+        body: `Colaboradores com risco alto/crítico de saída nos últimos ${days} dias:\n\n${highRisks.join('\n')}\n\nAcesse o Dashboard para mais detalhes.`,
+        priority: 'urgent',
+        targetRoles: ['admin', 'gerente', 'rh'],
+        createdBy: 'Sistema',
+      })
+      console.log(`[Turnover] Alerta criado: ${highRisks.length} colab(s) em risco alto`)
+    }
+  } catch (err) {
+    console.error('[Turnover] Erro no check automático:', err?.message || err)
+  }
+}
+
 // ── Static files ────────────────────────────────────────────────────────
 
 if (!fs.existsSync(indexPath)) {
@@ -1820,9 +1874,11 @@ export { app, parseSlotMinutes, computeWeekStart, todayBR }
 // Só inicia o servidor e jobs se não estiver em modo teste
 if (process.env.NODE_ENV !== 'test') {
   setInterval(runAutomatedJobs, 60000)
+  setInterval(checkTurnoverRisk, 24 * 60 * 60 * 1000) // diário
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Orion Escala running on port ${PORT}`)
     console.log(`Claude AI: ${anthropic ? 'enabled' : 'disabled (no API key)'}`)
     runAutomatedJobs()
+    setTimeout(checkTurnoverRisk, 5000) // 5s após boot
   })
 }

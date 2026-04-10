@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { CalendarDays, Send, Check } from 'lucide-react'
+import { CalendarDays, Send, Check, Zap } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { useApp } from '@/store/AppContext'
 import { useToast } from '@/components/ui/Toast'
@@ -7,6 +7,18 @@ import { HOUR_RANGES } from '@/types'
 import type { AvailabilityDeclaration, AvailabilitySlot, DayOfWeek } from '@/types'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
+
+type ShiftPattern = { id: string; name: string; startHour: number; endHour: number; color: string; isActive: boolean }
+
+function rangesForPattern(p: ShiftPattern): string[] {
+  return HOUR_RANGES.filter(hr => {
+    const h = parseInt(hr.split(':')[0])
+    if (p.endHour > p.startHour) {
+      return h >= p.startHour && h < p.endHour
+    }
+    return h >= p.startHour || h < p.endHour // overnight
+  })
+}
 
 const DAYS: DayOfWeek[] = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
 const DAY_SHORT: Record<DayOfWeek, string> = {
@@ -47,6 +59,14 @@ export default function DisponibilidadePage() {
   const { toast } = useToast()
   const loggedEmployeeId = state.currentUser.employeeId || ''
   const loggedEmployee = state.employees.find(e => e.id === loggedEmployeeId)
+
+  const [patterns, setPatterns] = useState<ShiftPattern[]>([])
+
+  useEffect(() => {
+    api.get<ShiftPattern[]>('/api/shift-patterns')
+      .then(setPatterns)
+      .catch(() => {})
+  }, [])
 
   // Week navigation — default to next week
   const [weekStart, setWeekStart] = useState(() => {
@@ -140,6 +160,19 @@ export default function DisponibilidadePage() {
     }
   }
 
+  function applyPattern(p: ShiftPattern) {
+    if (status === 'submitted') return
+    const ranges = rangesForPattern(p)
+    setSelected(prev => {
+      const next = new Set(prev)
+      const keys = DAYS.flatMap(day => ranges.map(hr => `${day}|${hr}`))
+      const allSelected = keys.every(k => next.has(k))
+      if (allSelected) keys.forEach(k => next.delete(k))
+      else keys.forEach(k => next.add(k))
+      return next
+    })
+  }
+
   // Dragging state for mobile/desktop painting
   const [isDragging, setIsDragging] = useState(false)
   const [dragMode, setDragMode] = useState<'add' | 'remove'>('add')
@@ -231,6 +264,29 @@ export default function DisponibilidadePage() {
           <span className="font-semibold text-foreground">{totalHours}</span> horas disponíveis esta semana
         </p>
       </div>
+
+      {/* Turnos Rápidos */}
+      {patterns.length > 0 && status !== 'submitted' && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+            <Zap className="h-3 w-3" /> Turno rápido:
+          </span>
+          {patterns.map(p => (
+            <button
+              key={p.id}
+              onClick={() => applyPattern(p)}
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-opacity hover:opacity-70"
+              style={{ borderColor: p.color, color: p.color }}
+            >
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+              {p.name}
+              <span className="font-mono opacity-60">
+                {String(p.startHour).padStart(2, '0')}–{String(p.endHour).padStart(2, '0')}h
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Grid */}
       <Card className="p-0 overflow-hidden">

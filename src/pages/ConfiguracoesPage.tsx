@@ -99,10 +99,30 @@ export default function ConfiguracoesPage() {
     setPatterns(prev => prev.filter(x => x.id !== id))
   }
 
-  // Demand history CSV paste
+  // Demand history CSV paste/drop
   const [demandCsv, setDemandCsv] = useState('')
   const [demandImporting, setDemandImporting] = useState(false)
   const [demandResult, setDemandResult] = useState<string | null>(null)
+  const [demandDragging, setDemandDragging] = useState(false)
+
+  const handleDemandFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setDemandDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setDemandCsv((ev.target?.result as string) || '')
+    reader.readAsText(file)
+  }
+
+  const handleDemandFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setDemandCsv((ev.target?.result as string) || '')
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   const importDemandCsv = async () => {
     const lines = demandCsv.trim().split('\n').filter(l => l.trim() && !l.startsWith('#'))
@@ -565,13 +585,33 @@ export default function ConfiguracoesPage() {
           Formato: <code className="rounded bg-muted px-1">date, dayOfWeek, hour, orders</code>
           &nbsp;— ex: <code className="rounded bg-muted px-1">2026-04-07, segunda, 12:00, 45</code>
         </p>
-        <textarea
-          value={demandCsv}
-          onChange={e => setDemandCsv(e.target.value)}
-          rows={5}
-          placeholder={'date,dayOfWeek,hour,orders\n2026-04-07,segunda,12:00,45\n2026-04-07,segunda,13:00,52'}
-          className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-xs font-mono text-foreground resize-y"
-        />
+        <div
+          onDrop={handleDemandFileDrop}
+          onDragOver={e => { e.preventDefault(); setDemandDragging(true) }}
+          onDragLeave={() => setDemandDragging(false)}
+          className={cn(
+            'relative rounded-lg border transition-colors',
+            demandDragging ? 'border-primary bg-primary/5' : 'border-transparent',
+          )}
+        >
+          {demandDragging && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-primary/10 text-xs font-semibold text-primary z-10">
+              Solte o arquivo CSV aqui
+            </div>
+          )}
+          <textarea
+            value={demandCsv}
+            onChange={e => setDemandCsv(e.target.value)}
+            rows={5}
+            placeholder={'date,dayOfWeek,hour,orders\n2026-04-07,segunda,12:00,45\n2026-04-07,segunda,13:00,52'}
+            className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-xs font-mono text-foreground resize-y"
+          />
+        </div>
+        <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-3 py-1.5 text-xs text-primary hover:border-primary/70 transition-colors">
+          <Upload className="h-3.5 w-3.5" />
+          Selecionar arquivo CSV
+          <input type="file" accept=".csv,text/plain,text/csv" className="sr-only" onChange={handleDemandFileSelect} />
+        </label>
         {demandResult && (
           <p className={cn(
             'mt-2 text-xs',
