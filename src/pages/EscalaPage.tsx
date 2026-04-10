@@ -1466,6 +1466,30 @@ export default function EscalaPage() {
           <p className="text-sm text-muted-foreground">
             Envie a escala publicada por WhatsApp para cada colaborador.
           </p>
+
+          {/* Botão enviar todos via API */}
+          <button
+            onClick={async () => {
+              const escalados = activeEmployees.filter(emp => getEmployeeHoursForWeek(schedule, emp.id) > 0 && emp.phone)
+              if (escalados.length === 0) { toast('warning', 'Nenhum colaborador com telefone cadastrado'); return }
+              let sent = 0; let failed = 0
+              for (const emp of escalados) {
+                const hours = getEmployeeHoursForWeek(schedule, emp.id)
+                const weekRange = formatWeekRange(schedule.weekStart)
+                const msg = `Olá ${emp.nickname || emp.name}! Sua escala da semana ${weekRange} foi publicada. Você tem ${hours}h agendadas. Confira os detalhes no app: ${window.location.origin}/minha-area`
+                try {
+                  await api.post('/api/whatsapp/send', { employeeId: emp.id, phone: emp.phone, message: msg, type: 'schedule_notify' })
+                  sent++
+                } catch { failed++ }
+              }
+              toast(failed === 0 ? 'success' : 'warning', `${sent} enviado(s)${failed > 0 ? `, ${failed} falharam` : ''}`)
+            }}
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-success-foreground hover:bg-success/90 transition-colors"
+          >
+            <Send className="h-4 w-4" />
+            Enviar para Todos via WhatsApp API
+          </button>
+
           <div className="space-y-2">
             {activeEmployees
               .filter((emp) => getEmployeeHoursForWeek(schedule, emp.id) > 0)
@@ -1483,17 +1507,40 @@ export default function EscalaPage() {
                       <p className="text-xs text-muted-foreground">
                         {hours}h esta semana &middot;{' '}
                         {formatCurrency(hours * emp.hourlyRate)}
+                        {!emp.phone && <span className="ml-1 text-warning">(sem tel.)</span>}
                       </p>
                     </div>
-                    <a
-                      href={buildWhatsAppLink(emp)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 rounded-lg bg-success/20 px-3 py-2 text-xs font-semibold text-success transition-colors hover:bg-success/30"
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                      Enviar WhatsApp
-                    </a>
+                    <div className="flex items-center gap-1.5">
+                      {emp.phone && (
+                        <button
+                          onClick={async () => {
+                            const weekRange = formatWeekRange(schedule.weekStart)
+                            const msg = `Olá ${emp.nickname || emp.name}! Sua escala da semana ${weekRange} foi publicada. ${hours}h agendadas. Veja: ${window.location.origin}/minha-area`
+                            try {
+                              await api.post('/api/whatsapp/send', { employeeId: emp.id, phone: emp.phone, message: msg, type: 'schedule_notify' })
+                              toast('success', `Enviado para ${emp.name}`)
+                            } catch (err) {
+                              toast('error', `Falha para ${emp.name}: ${err instanceof Error ? err.message : 'Erro'}`)
+                            }
+                          }}
+                          className="flex items-center gap-1 rounded-lg bg-success/20 px-2.5 py-1.5 text-[11px] font-semibold text-success transition-colors hover:bg-success/30"
+                          title="Enviar via API (Z-API/Evolution)"
+                        >
+                          <Send className="h-3 w-3" />
+                          API
+                        </button>
+                      )}
+                      <a
+                        href={buildWhatsAppLink(emp)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/80"
+                        title="Abrir no WhatsApp Web"
+                      >
+                        <Send className="h-3 w-3" />
+                        Link
+                      </a>
+                    </div>
                   </div>
                 )
               })}

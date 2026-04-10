@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Calendar,
   DollarSign,
@@ -8,6 +9,7 @@ import {
   ChevronRight,
   Award,
   Bell,
+  Fingerprint,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -263,15 +265,57 @@ export default function MinhaAreaPage() {
 
       {employee && (
         <>
-          {/* Welcome */}
-          <div className="rounded-xl bg-gradient-to-r from-primary/10 to-accent/10 p-4">
-            <p className="text-lg font-bold text-foreground">
-              Ola, {employee.nickname || employee.name}!
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {formatCurrency(employee.hourlyRate)}/hora
-            </p>
-          </div>
+          {/* Welcome + Quick Check-in */}
+          {(() => {
+            // Verifica se tem turno hoje e se já fez check-in
+            const todayScheduleDay = weekSchedule.find(d => d.date === new Date().toISOString().split('T')[0])
+            const hasTurnToday = todayScheduleDay && todayScheduleDay.status !== 'folga'
+            const todayPonto = state.pontoRecords.find(
+              p => p.employeeId === selectedEmployeeId && p.date === new Date().toISOString().split('T')[0]
+            )
+            const hasCheckedIn = !!todayPonto?.checkIn
+
+            return (
+              <div className={cn(
+                'rounded-xl p-4',
+                hasTurnToday && !hasCheckedIn
+                  ? 'bg-gradient-to-r from-primary/15 to-accent/15 border-2 border-primary/30'
+                  : 'bg-gradient-to-r from-primary/10 to-accent/10',
+              )}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-lg font-bold text-foreground">
+                      Ola, {employee.nickname || employee.name}!
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatCurrency(employee.hourlyRate)}/hora
+                    </p>
+                    {hasTurnToday && todayScheduleDay.shifts[0] && (
+                      <p className="mt-1 text-sm font-semibold text-primary">
+                        Turno hoje: {todayScheduleDay.shifts[0].start} — {todayScheduleDay.shifts[0].end} ({todayScheduleDay.hours}h)
+                      </p>
+                    )}
+                  </div>
+                  {hasTurnToday && (
+                    hasCheckedIn ? (
+                      <div className="flex flex-col items-center gap-1">
+                        <CheckCircle className="h-8 w-8 text-success" />
+                        <span className="text-[10px] font-semibold text-success">Check-in OK</span>
+                      </div>
+                    ) : (
+                      <Link
+                        to="/checkin"
+                        className="flex flex-col items-center gap-1 rounded-xl bg-primary px-5 py-3 text-primary-foreground transition-transform active:scale-95"
+                      >
+                        <Fingerprint className="h-7 w-7" />
+                        <span className="text-xs font-bold">Check-in</span>
+                      </Link>
+                    )
+                  )}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Notifications */}
           {myNotifications.length > 0 && (
