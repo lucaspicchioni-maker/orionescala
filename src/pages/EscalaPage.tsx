@@ -30,6 +30,7 @@ import { HOUR_RANGES, MIN_SHIFT_HOURS } from '@/types'
 
 import type { WeekSchedule, ScheduleDayData } from '@/store/AppContext'
 import { generateNotificationsForSchedule } from '@/services/notifications'
+import { notifySchedulePublished } from '@/services/browserNotifications'
 
 // ─── Constants ─────────────────────────────────────────────────────
 
@@ -509,6 +510,7 @@ export default function EscalaPage() {
       schedule.days.forEach(day => day.slots.forEach(slot => slot.assignments.forEach(a => convocated.add(a.employeeId))))
       const suffix = overrideOptions ? ' (com override CLT registrado)' : ''
       toast('success', `Escala publicada${suffix}! ${convocated.size} colaborador${convocated.size === 1 ? '' : 'es'} convocado${convocated.size === 1 ? '' : 's'}.`)
+      notifySchedulePublished(weekStart, convocated.size)
       setShowPublishModal(false)
       setCltViolations([])
       setCanOverrideClt(false)

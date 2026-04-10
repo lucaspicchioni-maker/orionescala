@@ -38,6 +38,26 @@ export default function ConfiguracoesPage() {
   const [waEnabled, setWaEnabled] = useState(state.whatsappConfig.enabled)
   const [waSaved, setWaSaved] = useState(false)
 
+  // Unit config (OEE target)
+  const [targetOrdersPerHour, setTargetOrdersPerHour] = useState('8')
+  const [unitSaved, setUnitSaved] = useState(false)
+
+  // Load unit config on mount
+  useState(() => {
+    api.get<{ targetOrdersPerHour?: number }>('/api/data/unit-config')
+      .then(data => {
+        if (data?.targetOrdersPerHour) setTargetOrdersPerHour(String(data.targetOrdersPerHour))
+      })
+      .catch(() => {})
+  })
+
+  const saveUnitConfig = async () => {
+    const payload = { targetOrdersPerHour: parseInt(targetOrdersPerHour) || 8 }
+    try { await api.put('/api/data/unit-config', payload) } catch { /* fallback */ }
+    setUnitSaved(true)
+    setTimeout(() => setUnitSaved(false), 3000)
+  }
+
   // Current user
   const [userName, setUserName] = useState(state.currentUser.name)
   const [userRole, setUserRole] = useState(state.currentUser.role)
@@ -255,6 +275,38 @@ export default function ConfiguracoesPage() {
             Localizacao nao configurada. O check-in GPS nao vai funcionar ate voce definir as coordenadas da cozinha.
           </p>
         )}
+      </Card>
+
+      {/* ─── Operação / Unidade ─── */}
+      <Card>
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <Smartphone className="h-4 w-4" />
+          Configuracao da Unidade
+        </h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Capacidade por pessoa/hora (pedidos)</label>
+            <input
+              type="number"
+              value={targetOrdersPerHour}
+              onChange={e => setTargetOrdersPerHour(e.target.value)}
+              min="1" max="100"
+              className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Usado no calculo OEE (Performance = pedidos / capacidade). Default 8 ped/h/pessoa.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <button
+            onClick={() => void saveUnitConfig()}
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            <Save className="h-4 w-4" />
+            {unitSaved ? 'Salvo!' : 'Salvar Config Unidade'}
+          </button>
+        </div>
       </Card>
 
       {/* ─── WhatsApp ─── */}

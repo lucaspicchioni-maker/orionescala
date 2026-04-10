@@ -404,6 +404,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }).catch(() => {})
       }
       dispatch({ type: 'SET_API_READY', payload: true })
+
+      // Pedir permissão de notificação no primeiro load após login
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {})
+      }
     } catch {
       // API not available, use local data
     } finally {

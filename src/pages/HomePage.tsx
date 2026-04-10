@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CalendarDays,
@@ -10,6 +10,8 @@ import {
   Zap,
   Target,
   DollarSign,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import {
   BarChart,
@@ -29,6 +31,8 @@ import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppContext'
 import { cn, formatCurrency, greetingBR } from '@/lib/utils'
 import { calculateOEE, calculateCostPerOrder } from '@/services/opsMetrics'
+import { api } from '@/lib/api'
+import { useEffect } from 'react'
 
 function getToday(): string {
   return new Date().toISOString().split('T')[0]
@@ -49,6 +53,14 @@ export default function HomePage() {
   const weekStart = getWeekStart()
 
   const loggedEmployeeId = currentUser.employeeId || ''
+
+  // Load unit config (targetOrdersPerHour) para OEE
+  const [targetOrdersPerHour, setTargetOrdersPerHour] = useState(8)
+  useEffect(() => {
+    api.get<{ targetOrdersPerHour?: number }>('/api/data/unit-config')
+      .then(data => { if (data?.targetOrdersPerHour) setTargetOrdersPerHour(data.targetOrdersPerHour) })
+      .catch(() => {})
+  }, [])
 
   // Today's schedule
   const todaySchedule = useMemo(() => {
@@ -114,8 +126,9 @@ export default function HomePage() {
       schedule: currentSchedule,
       pontoRecords: state.pontoRecords,
       productivityRecords: state.productivityRecords,
+      targetOrdersPerHour,
     }),
-    [currentSchedule, state.pontoRecords, state.productivityRecords],
+    [currentSchedule, state.pontoRecords, state.productivityRecords, targetOrdersPerHour],
   )
 
   const costResult = useMemo(
@@ -129,6 +142,68 @@ export default function HomePage() {
   )
 
   const hasOpsData = (oeeResult.scheduledHours > 0 || oeeResult.totalOrders > 0)
+
+  // ── OEE Drill-down por colaborador ──────────────────────────────
+  const [showOEEDrilldown, setShowOEEDrilldown] = useState(false)
+
+  const oeeByEmployee = useMemo(() => {
+    if (!currentSchedule) return []
+    const empMap = new Map(state.employees.map(e => [e.id, e]))
+    const weekDates = currentSchedule.days?.map(d => d.date) ?? []
+
+    // Collect unique employee IDs from schedule
+    const empIds = new Set<string>()
+    for (const day of currentSchedule.days || []) {
+      for (const slot of day.slots || []) {
+        for (const a of slot.assignments || []) empIds.add(a.employeeId)
+      }
+    }
+
+    return [...empIds].map(empId => {
+      const emp = empMap.get(empId)
+      if (!emp) return null
+
+      // Hours scheduled for this employee
+      let scheduledHours = 0
+      for (const day of currentSchedule.days || []) {
+        for (const slot of day.slots || []) {
+          if (slot.assignments?.some(a => a.employeeId === empId)) scheduledHours++
+        }
+      }
+
+      // Hours worked
+      const ponto = state.pontoRecords.filter(p => p.employeeId === empId && weekDates.includes(p.date))
+      const workedMinutes = ponto.reduce((s, p) => s + (p.workedMinutes || 0), 0)
+      const workedHours = workedMinutes / 60
+
+      // Productivity
+      const prod = state.productivityRecords.filter(r => r.employeeId === empId && r.weekStart === weekStart)
+      const orders = prod.reduce((s, r) => s + (r.totalOrders || 0), 0)
+      const errors = prod.reduce((s, r) => s + (r.totalErrors || 0), 0)
+
+      const avail = scheduledHours > 0 ? Math.min(1, workedHours / scheduledHours) : 0
+      const perf = scheduledHours > 0 ? Math.min(1, orders / (scheduledHours * 8)) : 0
+      const qual = orders > 0 ? (orders - errors) / orders : 1
+      const oee = avail * perf * qual
+
+      return {
+        id: empId,
+        name: emp.nickname || emp.name,
+        scheduledHours,
+        workedHours: Math.round(workedHours * 10) / 10,
+        orders,
+        errors,
+        oee: Math.round(oee * 100),
+        avail: Math.round(avail * 100),
+        perf: Math.round(perf * 100),
+        qual: Math.round(qual * 100),
+        costDay: scheduledHours * (emp.hourlyRate || 0),
+      }
+    }).filter(Boolean).sort((a, b) => (b?.oee || 0) - (a?.oee || 0)) as Array<{
+      id: string; name: string; scheduledHours: number; workedHours: number;
+      orders: number; errors: number; oee: number; avail: number; perf: number; qual: number; costDay: number
+    }>
+  }, [currentSchedule, state.employees, state.pontoRecords, state.productivityRecords, weekStart])
 
   // ── Chart data ───────────────────────────────────────────────────────────
 
@@ -409,6 +484,15 @@ export default function HomePage() {
                   </div>
                 </div>
               )}
+              {hasOpsData && oeeByEmployee.length > 0 && (
+                <button
+                  onClick={() => setShowOEEDrilldown(v => !v)}
+                  className="mt-3 flex w-full items-center justify-center gap-1 border-t border-border pt-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showOEEDrilldown ? 'Ocultar detalhes' : 'Ver por colaborador'}
+                  {showOEEDrilldown ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+              )}
             </Card>
 
             {/* Cost per Order Card */}
@@ -447,6 +531,54 @@ export default function HomePage() {
               )}
             </Card>
           </div>
+
+          {/* ═══ OEE Drill-down por colaborador ═══ */}
+          {showOEEDrilldown && oeeByEmployee.length > 0 && (
+            <Card>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                OEE por Colaborador — Semana {weekStart}
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th className="py-2 px-2 text-left font-medium">Nome</th>
+                      <th className="py-2 px-2 text-center font-medium">OEE</th>
+                      <th className="py-2 px-2 text-center font-medium">Avail.</th>
+                      <th className="py-2 px-2 text-center font-medium">Perf.</th>
+                      <th className="py-2 px-2 text-center font-medium">Qual.</th>
+                      <th className="py-2 px-2 text-center font-medium">Horas</th>
+                      <th className="py-2 px-2 text-center font-medium">Pedidos</th>
+                      <th className="py-2 px-2 text-center font-medium">Erros</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {oeeByEmployee.map(emp => (
+                      <tr key={emp.id} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
+                        <td className="py-2 px-2 font-medium text-foreground">{emp.name}</td>
+                        <td className="py-2 px-2 text-center">
+                          <span className={cn(
+                            'inline-block rounded-md px-2 py-0.5 text-xs font-bold',
+                            emp.oee >= 85 ? 'bg-success/15 text-success' :
+                            emp.oee >= 60 ? 'bg-warning/15 text-warning' :
+                            'bg-destructive/15 text-destructive',
+                          )}>
+                            {emp.oee}%
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-center text-muted-foreground">{emp.avail}%</td>
+                        <td className="py-2 px-2 text-center text-muted-foreground">{emp.perf}%</td>
+                        <td className="py-2 px-2 text-center text-muted-foreground">{emp.qual}%</td>
+                        <td className="py-2 px-2 text-center text-muted-foreground">{emp.workedHours}/{emp.scheduledHours}h</td>
+                        <td className="py-2 px-2 text-center text-foreground font-medium">{emp.orders}</td>
+                        <td className={cn('py-2 px-2 text-center font-medium', emp.errors > 0 ? 'text-destructive' : 'text-success')}>{emp.errors}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Card className="text-center !p-3">
