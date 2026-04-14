@@ -418,6 +418,38 @@ app.delete('/api/employees/:id', requireRole('admin', 'gerente'), (req, res) => 
   } catch (err) { console.error('[API]', req.method, req.path, err?.message || err); res.status(500).json({ error: 'Erro interno do servidor' }) }
 })
 
+// ── Hiring Requests (proxy para Orion RH) ─────────────────────────────
+app.post('/api/hiring-requests', requireRole('admin', 'gerente', 'rh'), async (req, res) => {
+  try {
+    const rhUrl = process.env.ORION_RH_API_URL
+    const apiKey = process.env.ORION_RH_API_KEY
+    if (!rhUrl || !apiKey) return res.status(503).json({ error: 'Integração com Orion RH não configurada' })
+
+    const { unit_id, role, quantity, priority, reason } = req.body
+    if (!role?.trim()) return res.status(400).json({ error: 'Cargo obrigatório' })
+
+    const response = await fetch(`${rhUrl.replace(/\/$/, '')}/api/hiring-requests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-escala-api-key': apiKey },
+      body: JSON.stringify({
+        unit_id: unit_id || null,
+        role: role.trim(),
+        quantity: Number(quantity) || 1,
+        priority: priority || 'media',
+        reason: reason || null,
+        requested_by_name: req.user?.name || req.user?.email || 'Escala',
+        requested_by_escala_id: req.user?.id || null,
+      }),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) return res.status(response.status).json(data)
+    res.status(201).json(data)
+  } catch (err) {
+    console.error('[API]', req.method, req.path, err?.message || err)
+    res.status(500).json({ error: 'Erro ao solicitar contratação' })
+  }
+})
+
 // ── Schedules ───────────────────────────────────────────────────────────
 
 app.get('/api/schedules', requireRole('admin', 'gerente', 'supervisor', 'rh'), (req, res) => {

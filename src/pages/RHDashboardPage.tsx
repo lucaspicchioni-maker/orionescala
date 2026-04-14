@@ -27,6 +27,32 @@ export default function RHDashboardPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiOpen, setAiOpen] = useState(false)
+  const [hireModal, setHireModal] = useState(false)
+  const [hireForm, setHireForm] = useState({ role: 'auxiliar', quantity: 1, priority: 'media', reason: '' })
+  const [hireLoading, setHireLoading] = useState(false)
+  const [hireMsg, setHireMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  async function submitHireRequest() {
+    setHireLoading(true)
+    setHireMsg(null)
+    try {
+      const res = await fetch('/api/hiring-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(hireForm),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar')
+      setHireMsg({ type: 'success', text: 'Solicitação enviada ao Orion RH!' })
+      setHireForm({ role: 'auxiliar', quantity: 1, priority: 'media', reason: '' })
+      setTimeout(() => { setHireModal(false); setHireMsg(null) }, 1500)
+    } catch (err) {
+      setHireMsg({ type: 'error', text: err instanceof Error ? err.message : 'Erro ao enviar' })
+    } finally {
+      setHireLoading(false)
+    }
+  }
 
   const activeEmployees = state.employees.filter(e => e.status === 'ativo')
   const onVacation = state.employees.filter(e => e.status === 'ferias')
@@ -299,17 +325,133 @@ export default function RHDashboardPage() {
                 {Math.ceil(scheduleGap / 7 * (1 + pontoStats.absenteeismRate / 100))} pessoa(s)
               </strong>.
             </p>
-            <button onClick={() => navigate('/dimensionamento')} className="mt-1 text-primary underline">
-              Ver calculadora completa de dimensionamento
-            </button>
+            <div className="mt-2 flex gap-2 flex-wrap">
+              <button
+                onClick={() => {
+                  const suggested = Math.ceil(scheduleGap / 7 * (1 + pontoStats.absenteeismRate / 100))
+                  setHireForm({
+                    role: 'auxiliar',
+                    quantity: suggested,
+                    priority: pontoStats.absenteeismRate > 10 ? 'alta' : 'media',
+                    reason: `${scheduleGap} vagas abertas na escala, absenteísmo de ${pontoStats.absenteeismRate}%`,
+                  })
+                  setHireModal(true)
+                }}
+                className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90"
+              >
+                Solicitar contratação
+              </button>
+              <button onClick={() => navigate('/dimensionamento')} className="text-primary underline">
+                Ver calculadora completa
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="mt-2 flex items-center gap-2 text-xs">
-            <TrendingUp className="h-4 w-4 text-success" />
-            <span className="text-success font-medium">Escala completa! Nao ha necessidade imediata de contratacao.</span>
+          <div className="mt-2 space-y-2">
+            <div className="flex items-center gap-2 text-xs">
+              <TrendingUp className="h-4 w-4 text-success" />
+              <span className="text-success font-medium">Escala completa! Nao ha necessidade imediata de contratacao.</span>
+            </div>
+            <button
+              onClick={() => setHireModal(true)}
+              className="text-xs text-muted-foreground hover:text-foreground underline"
+            >
+              Solicitar contratação mesmo assim
+            </button>
           </div>
         )}
       </div>
+
+      {hireModal && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+          onClick={() => !hireLoading && setHireModal(false)}
+        >
+          <div
+            className="bg-card border border-border rounded-xl w-full max-w-md p-6 space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div>
+              <h2 className="text-lg font-semibold">Solicitar contratação</h2>
+              <p className="text-xs text-muted-foreground">Esta solicitação será enviada ao Orion RH</p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Cargo *</label>
+                <select
+                  value={hireForm.role}
+                  onChange={e => setHireForm({ ...hireForm, role: e.target.value })}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="auxiliar">Auxiliar Operacional</option>
+                  <option value="lider">Líder</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="gerente">Gerente</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Quantidade *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={hireForm.quantity}
+                    onChange={e => setHireForm({ ...hireForm, quantity: Number(e.target.value) })}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Prioridade</label>
+                  <select
+                    value={hireForm.priority}
+                    onChange={e => setHireForm({ ...hireForm, priority: e.target.value })}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="baixa">Baixa</option>
+                    <option value="media">Média</option>
+                    <option value="alta">Alta</option>
+                    <option value="urgente">Urgente</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Motivo / contexto</label>
+                <textarea
+                  value={hireForm.reason}
+                  onChange={e => setHireForm({ ...hireForm, reason: e.target.value })}
+                  rows={3}
+                  placeholder="Ex: absenteísmo elevado, expansão da operação, substituição..."
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            {hireMsg && (
+              <div className={`text-xs p-2 rounded ${hireMsg.type === 'success' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                {hireMsg.text}
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                onClick={() => setHireModal(false)}
+                disabled={hireLoading}
+                className="px-4 py-2 rounded-md text-sm text-muted-foreground hover:bg-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={submitHireRequest}
+                disabled={hireLoading || !hireForm.role}
+                className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              >
+                {hireLoading ? 'Enviando...' : 'Enviar solicitação'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
